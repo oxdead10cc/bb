@@ -90,8 +90,9 @@ BB_HOST_DAEMON_PORT only for an intentional non-default target.
   it also prints that machine's availability (`available`, `setup-required`,
   `unavailable`, or `unknown` until the background probe answers). Read or set `managedBranchPrefix`
   through `bb settings show` and `bb settings general <key> <value>`.
-- The server keeps a registry of sidebar layout preferences (organization
-  mode, section order, collapsed rows, navigation entries): `bb settings ui
+- The server keeps a registry of UI preferences — sidebar layout (organization
+  mode, section order, collapsed rows, navigation entries) and composer
+  favorites (`composer.favoriteModelPresets`): `bb settings ui
 list`, `get`, `set`, and `reset`.
 - Query provider models on the machine that will run the thread.
 - Prefer non-interactive commands and machine-readable output for automation.

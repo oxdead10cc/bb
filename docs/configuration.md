@@ -663,13 +663,14 @@ from 5 seconds to 5 minutes, and never downgrade a daemon. Settings → Machines
 and `bb machine retry-update <id-or-name>` can bypass the current backoff after
 a transient failure.
 
-## Sidebar preferences
+## UI preferences
 
-Sidebar layout preferences are stored on the server in a keyed registry so
-every window, device, and the CLI read the same value. Each key has a typed
-schema, a default, and a revision that increments on every write. Writes name
-the revision they expect and receive `409 ui_preference_conflict` when another
-client wrote first, so a stale window cannot silently clobber a newer value.
+Sidebar layout and composer preferences are stored on the server in a keyed
+registry so every window, device, and the CLI read the same value. Each key has
+a typed schema, a default, and a revision that increments on every write. Writes
+name the revision they expect and receive `409 ui_preference_conflict` when
+another client wrote first, so a stale window cannot silently clobber a newer
+value.
 
 | Key                               | Value                                               |
 | --------------------------------- | --------------------------------------------------- |
@@ -690,6 +691,7 @@ client wrote first, so a stale window cannot silently clobber a newer value.
 | `sidebar.visiblePluginPanels`     | Navigation entries shown, or `null` for every entry |
 | `sidebar.navigationProvider`      | Plugin key, `__automatic__`, or `__builtin__`       |
 | `sidebar.threadListProvider`      | Plugin key, `__automatic__`, or `__builtin__`       |
+| `composer.favoriteModelPresets`   | Favorite provider, model, and reasoning combinations |
 
 Custom (`chronological`) is the default for `sidebar.organizationMode` when no
 value is saved. Existing server and legacy browser choices are preserved.
@@ -741,6 +743,31 @@ visible. The existing SDK UI preferences and CLI manage the same values:
 bb settings ui set sidebar.hiddenFooterItems '["builtin:report-bug"]'
 bb settings ui set sidebar.footerOrder '["builtin:report-bug","builtin:settings"]'
 bb settings ui reset sidebar.hiddenFooterItems
+```
+
+### Favorite model presets
+
+The model picker pins favorited combinations above the model list. A favorite
+carries a provider, a model, and a reasoning effort together, so selecting one
+applies all three in a single change instead of switching model and effort
+separately. The star next to Reasoning adds or removes the combination the
+picker currently shows; the list is global, so a Claude favorite and a Codex
+favorite sit side by side.
+
+A favorite whose model is gone from its provider's catalog is hidden, and so is
+a favorite for a provider that is no longer installed. Neither is deleted, so a
+reinstalled provider brings its favorites back. The list holds 20 entries; a new
+favorite beyond that drops the oldest.
+
+`composer.favoriteModelPresets` holds an array of
+`{ providerId, model, reasoningLevel, label? }`, where `label` overrides the
+name shown in the picker:
+
+```sh
+bb settings ui set composer.favoriteModelPresets \
+  '[{"providerId":"claude-code","model":"claude-opus-5","reasoningLevel":"ultracode"},
+    {"providerId":"codex","model":"gpt-5.6","reasoningLevel":"medium","label":"Quick draft"}]'
+bb settings ui reset composer.favoriteModelPresets
 ```
 
 ## Thread splits

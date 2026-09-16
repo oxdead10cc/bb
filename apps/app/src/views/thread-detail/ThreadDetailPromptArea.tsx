@@ -1430,6 +1430,7 @@ export function ThreadDetailPromptArea({
         options: reasoningOptions,
         onChange: setReasoningLevel,
       },
+      onApplySelection: setProviderModelReasoning,
       handoff: {
         sourceProviderId: thread.providerId,
         active: isHandoffSelection,
@@ -1443,6 +1444,7 @@ export function ThreadDetailPromptArea({
       executionOptionsRouting,
       hasMultipleProviders,
       handleHandoffSelect,
+      setProviderModelReasoning,
       beginHandoff,
       isHandoffSelection,
       exitHandoff,

@@ -8,6 +8,7 @@ import { formatModelLabel } from "@/hooks/useThreadCreationOptions";
 import {
   ModelReasoningPicker,
   type ModelReasoningPickerHandoff,
+  type ModelReasoningPickerHandoffSelection,
 } from "@/components/pickers/ModelReasoningPicker";
 import { type PickerOption } from "@/components/pickers/OptionPicker";
 import type { ModelPickerOption } from "@/components/pickers/model-picker-option";
@@ -58,6 +59,7 @@ export interface ExecutionControlsProps {
   model: ExecutionModelConfig;
   serviceTier?: ExecutionServiceTierConfig;
   reasoning: ExecutionReasoningConfig;
+  onApplySelection?: (selection: ModelReasoningPickerHandoffSelection) => void;
   handoff?: ModelReasoningPickerHandoff;
   disabled?: boolean;
 }
@@ -68,6 +70,7 @@ export const ExecutionControls = memo(function ExecutionControls({
   model,
   serviceTier,
   reasoning,
+  onApplySelection,
   handoff,
   disabled,
 }: ExecutionControlsProps) {
@@ -108,6 +111,7 @@ export const ExecutionControls = memo(function ExecutionControls({
           reasoningValue={reasoning.value}
           reasoningOptions={reasoning.options}
           onReasoningChange={reasoning.onChange}
+          onApplySelection={onApplySelection}
           fastModeEnabled={serviceTier?.value === "fast"}
           onFastModeChange={(enabled) =>
             handleServiceTierChange(enabled ? "fast" : "default")

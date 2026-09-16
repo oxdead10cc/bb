@@ -257,14 +257,14 @@ Both skip a default set of dependency and cache directories such as
 or exact root-relative paths using `/` separators. Use
 `--json` for metadata and machine-readable results.
 
-Server-backed sidebar preferences
+Server-backed UI preferences
 
-Sidebar layout lives on the server in a keyed, revisioned registry so every
-window, device, and the CLI share it: organization mode, chronological sort,
-section orders, collapsed rows and sections, navigation entry order and
-visibility, and the navigation and thread-list provider pickers. The sidebar
-waits for them alongside the project list, and an upgrade uploads the old
-browser-stored layout once.
+Sidebar layout and composer favorites live on the server in a keyed, revisioned
+registry so every window, device, and the CLI share them: organization mode,
+chronological sort, section orders, collapsed rows and sections, navigation
+entry order and visibility, the navigation and thread-list provider pickers, and
+`composer.favoriteModelPresets`. The sidebar waits for them alongside the
+project list, and an upgrade uploads the old browser-stored layout once.
 
   bb settings ui list [--json]
   bb settings ui get <key> [--json]
@@ -300,6 +300,24 @@ are visible by default. Example:
 
   bb settings ui set sidebar.hiddenFooterItems '["plugin:provider-usage/usage"]'
   bb settings ui reset sidebar.hiddenFooterItems
+
+Favorite model presets
+
+The model picker pins favorited combinations above the model list. A favorite
+carries a provider, a model, and a reasoning effort together, so selecting one
+applies all three at once instead of changing model and effort separately. The
+star beside Reasoning adds or removes the combination the picker currently
+shows. The list is global, so favorites from different providers sit together.
+A favorite is hidden while its model is missing from the provider's catalog or
+the provider is not installed, and it returns when they come back. The list
+holds 20 entries; a new favorite beyond that drops the oldest.
+
+`composer.favoriteModelPresets` is a list of
+`{ providerId, model, reasoningLevel, label? }`; `label` overrides the name the
+picker shows.
+
+  bb settings ui set composer.favoriteModelPresets '[{"providerId":"codex","model":"gpt-5.6","reasoningLevel":"medium"}]'
+  bb settings ui reset composer.favoriteModelPresets
 
 Client-local UI preferences
 

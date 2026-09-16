@@ -1742,6 +1742,7 @@ export function NewThreadComposer({
               options: reasoningOptions,
               onChange: handleReasoningChange,
             },
+            onApplySelection: setProviderModelReasoning,
           }}
         />
       );
@@ -1798,6 +1799,7 @@ export function NewThreadComposer({
       selectedProviderId,
       serviceTier,
       serviceTierSupportByProvider,
+      setProviderModelReasoning,
       sidebarNavigationSettled,
       supportsPermissionModeSelection,
       supportsServiceTier,

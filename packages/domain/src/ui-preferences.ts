@@ -1,7 +1,9 @@
 import { z } from "zod";
+import { reasoningLevelSchema } from "./shared-types.js";
 
 const UI_PREFERENCE_STRING_MAX_LENGTH = 1_024;
 const UI_PREFERENCE_LIST_MAX_LENGTH = 10_000;
+export const FAVORITE_MODEL_PRESET_LIST_MAX_LENGTH = 20;
 
 const sidebarOrganizationModeSchema = z.enum([
   "project",
@@ -32,6 +34,30 @@ const uiPreferenceStringListSchema = z
   .array(uiPreferenceStringSchema)
   .max(UI_PREFERENCE_LIST_MAX_LENGTH);
 
+const favoriteModelPresetSchema = z
+  .object({
+    providerId: uiPreferenceStringSchema,
+    model: uiPreferenceStringSchema,
+    reasoningLevel: reasoningLevelSchema,
+    label: uiPreferenceStringSchema.optional(),
+  })
+  .strict();
+const favoriteModelPresetListSchema = z
+  .array(favoriteModelPresetSchema)
+  .max(FAVORITE_MODEL_PRESET_LIST_MAX_LENGTH);
+
+export type FavoriteModelPreset = z.infer<typeof favoriteModelPresetSchema>;
+
+export function favoriteModelPresetKey(
+  preset: Pick<FavoriteModelPreset, "providerId" | "model" | "reasoningLevel">,
+): string {
+  return JSON.stringify([
+    preset.providerId,
+    preset.model,
+    preset.reasoningLevel,
+  ]);
+}
+
 export const UI_PREFERENCE_KEYS = [
   "sidebar.organizationMode",
   "sidebar.chronologicalSort",
@@ -51,6 +77,7 @@ export const UI_PREFERENCE_KEYS = [
   "sidebar.visiblePluginPanels",
   "sidebar.navigationProvider",
   "sidebar.threadListProvider",
+  "composer.favoriteModelPresets",
 ] as const;
 export type UiPreferenceKey = (typeof UI_PREFERENCE_KEYS)[number];
 const uiPreferenceKeySchema = z.enum(UI_PREFERENCE_KEYS);
@@ -165,6 +192,11 @@ export const uiPreferenceDefinitions = {
     uiPreferenceStringSchema,
     "__automatic__",
     "Plugin that renders the sidebar thread list, or __automatic__ / __builtin__.",
+  ),
+  "composer.favoriteModelPresets": defineUiPreference(
+    favoriteModelPresetListSchema,
+    [],
+    "Favorite provider, model, and reasoning effort combinations pinned to the top of the model picker.",
   ),
 } as const satisfies Record<UiPreferenceKey, UiPreferenceDefinition>;
 

@@ -12,13 +12,16 @@ import type {
   SystemExecutionOptionsModelLoadError,
   SystemProvidersQuery,
 } from "@bb/server-contract";
-import type { ReasoningLevel } from "@bb/domain";
+import type { FavoriteModelPreset, ReasoningLevel } from "@bb/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   stripModelBrandPrefix,
   type ProviderPickerOption,
 } from "./model-brand-prefix";
-import { fastServiceTierLabel } from "@/lib/reasoning-labels";
+import {
+  fastServiceTierLabel,
+  reasoningLevelLabel,
+} from "@/lib/reasoning-labels";
 import { Button } from "@bb/shared-ui/button";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
 import { Input } from "@bb/shared-ui/input";
@@ -84,6 +87,12 @@ import {
   nextCycleValue,
   previousCycleValue,
 } from "./modelPickerCycle";
+import {
+  buildFavoritePresetRows,
+  useFavoriteModelPresets,
+  type FavoriteModelPresetRow,
+  type FavoriteModelPresetSelection,
+} from "./favoriteModelPresets";
 
 interface ModelLabelParts {
   base: string;
@@ -141,9 +150,12 @@ function splitModelLabelTag(label: string): ModelLabelParts {
   return { base: match[1], tag: match[2] };
 }
 
-type ModelNavRow =
+type ModelCatalogNavRow =
   | { kind: "model"; option: ModelPickerOption }
   | { kind: "more-toggle" };
+type ModelNavRow =
+  | ModelCatalogNavRow
+  | { kind: "favorite"; row: FavoriteModelPresetRow };
 
 export function buildModelNavRows({
   modelOptions,
@@ -157,11 +169,13 @@ export function buildModelNavRows({
   isCompactViewport: boolean;
   isSearching: boolean;
   showMoreModels: boolean;
-}): ModelNavRow[] {
-  const rows: ModelNavRow[] = modelOptions.map((option): ModelNavRow => ({
-    kind: "model",
-    option,
-  }));
+}): ModelCatalogNavRow[] {
+  const rows: ModelCatalogNavRow[] = modelOptions.map(
+    (option): ModelCatalogNavRow => ({
+      kind: "model",
+      option,
+    }),
+  );
   if (moreModelOptions.length === 0) return rows;
 
   if (isSearching) {
@@ -200,6 +214,7 @@ interface ModelReasoningPickerProps {
   reasoningValue: ReasoningLevel;
   reasoningOptions: readonly PickerOption<ReasoningLevel>[];
   onReasoningChange: (value: ReasoningLevel) => void;
+  onApplySelection?: (selection: ModelReasoningPickerHandoffSelection) => void;
   fastModeEnabled: boolean;
   onFastModeChange: (enabled: boolean) => void;
   showFastModeToggle: boolean;
@@ -233,6 +248,7 @@ export function ModelReasoningPicker({
   reasoningValue,
   reasoningOptions,
   onReasoningChange,
+  onApplySelection,
   fastModeEnabled,
   onFastModeChange,
   showFastModeToggle,
@@ -518,7 +534,7 @@ export function ModelReasoningPicker({
     ? EMPTY_MODEL_OPTIONS
     : activeMoreModelOptions;
 
-  const navRows = useMemo(
+  const modelNavRows = useMemo(
     () =>
       buildModelNavRows({
         modelOptions: filteredModelOptions,
@@ -534,6 +550,62 @@ export function ModelReasoningPicker({
       isSearching,
       showMoreModels,
     ],
+  );
+
+  const { presets, isFavorite, toggleFavorite } = useFavoriteModelPresets();
+  const canFavoriteSelection =
+    hasSelectedModel && !isPreviewing && !handoffMode;
+  const favoriteSelection = useMemo<FavoriteModelPresetSelection | null>(
+    () =>
+      canFavoriteSelection
+        ? {
+            providerId: selectedProviderId,
+            model: modelValue,
+            reasoningLevel: reasoningValue,
+          }
+        : null,
+    [canFavoriteSelection, modelValue, reasoningValue, selectedProviderId],
+  );
+  const favoriteRows = useMemo(
+    () =>
+      isSearching || isShowingModelError
+        ? []
+        : buildFavoritePresetRows({
+            presets,
+            activeProviderId: selectedProviderId,
+            activeModelOptions: modelOptions,
+            providerOptions,
+            selection: favoriteSelection,
+            reasoningLabel: (preset: FavoriteModelPreset) => {
+              const declared =
+                preset.providerId === selectedProviderId
+                  ? reasoningOptions.find(
+                      (option) => option.value === preset.reasoningLevel,
+                    )
+                  : undefined;
+              return (
+                declared?.label ??
+                reasoningLevelLabel(preset.reasoningLevel, undefined)
+              );
+            },
+          }),
+    [
+      favoriteSelection,
+      isSearching,
+      isShowingModelError,
+      modelOptions,
+      presets,
+      providerOptions,
+      reasoningOptions,
+      selectedProviderId,
+    ],
+  );
+  const navRows = useMemo<ModelNavRow[]>(
+    () => [
+      ...favoriteRows.map((row): ModelNavRow => ({ kind: "favorite", row })),
+      ...modelNavRows,
+    ],
+    [favoriteRows, modelNavRows],
   );
 
   const highlightedIndex =
@@ -609,6 +681,46 @@ export function ModelReasoningPicker({
       previewSelection,
       previewSelectionBlocked,
       reasoningValue,
+    ],
+  );
+
+  const handleFavoriteSelect = useCallback(
+    (preset: FavoriteModelPreset) => {
+      const selection = {
+        providerId: preset.providerId,
+        model: preset.model,
+        reasoningLevel: preset.reasoningLevel,
+      };
+      if (
+        handoff !== undefined &&
+        (handoffMode || preset.providerId !== handoff.sourceProviderId)
+      ) {
+        handoff.onStart();
+        handoff.onSelect(selection);
+        setMoreModelsOpen(false);
+        return;
+      }
+      if (onApplySelection !== undefined) {
+        onApplySelection(selection);
+      } else {
+        if (preset.providerId !== selectedProviderId) {
+          onSelectedProviderChange?.(preset.providerId);
+        }
+        onModelChange(preset.model);
+        onReasoningChange(preset.reasoningLevel);
+      }
+      setPreviewProviderId(null);
+      setMoreModelsOpen(false);
+      setOpen(false);
+    },
+    [
+      handoff,
+      handoffMode,
+      onApplySelection,
+      onModelChange,
+      onReasoningChange,
+      onSelectedProviderChange,
+      selectedProviderId,
     ],
   );
 
@@ -896,12 +1008,16 @@ export function ModelReasoningPicker({
         event.preventDefault();
         if (row.kind === "model") {
           handleModelSelect(row.option.value);
-        } else {
-          setShowMoreModels((current) => !current);
+          return;
         }
+        if (row.kind === "favorite") {
+          handleFavoriteSelect(row.row.preset);
+          return;
+        }
+        setShowMoreModels((current) => !current);
       }
     },
-    [navRows, highlightedIndex, handleModelSelect],
+    [navRows, highlightedIndex, handleFavoriteSelect, handleModelSelect],
   );
 
   useEffect(() => {
@@ -1131,6 +1247,24 @@ export function ModelReasoningPicker({
                 !isCompactViewport && "max-h-64",
               )}
             >
+              {favoriteRows.length > 0 ? (
+                <>
+                  <MenuSectionLabel>Favorites</MenuSectionLabel>
+                  {favoriteRows.map((row, index) => (
+                    <MenuRowButton
+                      key={row.key}
+                      id={optionDomId(index)}
+                      role={showSearchInput ? "option" : undefined}
+                      isActive={highlightedIndex === index}
+                      label={row.label}
+                      qualifier={row.qualifier}
+                      selected={row.selected}
+                      disabled={previewSelectionBlocked}
+                      onClick={() => handleFavoriteSelect(row.preset)}
+                    />
+                  ))}
+                </>
+              ) : null}
               {isShowingModelError ? null : (
                 <MenuSectionLabel>Model</MenuSectionLabel>
               )}
@@ -1141,7 +1275,8 @@ export function ModelReasoningPicker({
                 />
               ) : hasActiveModelOptions ? (
                 <>
-                  {navRows.map((row, index) => {
+                  {modelNavRows.map((row, modelIndex) => {
+                    const index = modelIndex + favoriteRows.length;
                     const active = highlightedIndex === index;
                     const domId = optionDomId(index);
                     if (row.kind === "more-toggle") {
@@ -1229,9 +1364,17 @@ export function ModelReasoningPicker({
               <>
                 <div className="shrink-0 border-t border-border" />
                 <div className="shrink-0 px-2 py-2.5">
-                  <MenuSectionLabel className="mb-2 px-1 py-0">
-                    Reasoning
-                  </MenuSectionLabel>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <MenuSectionLabel className="px-1 py-0">
+                      Reasoning
+                    </MenuSectionLabel>
+                    {favoriteSelection ? (
+                      <FavoriteToggleButton
+                        favorited={isFavorite(favoriteSelection)}
+                        onToggle={() => toggleFavorite(favoriteSelection)}
+                      />
+                    ) : null}
+                  </div>
                   <ToggleGroup
                     type="single"
                     aria-label="Reasoning"
@@ -1348,6 +1491,34 @@ function MenuSectionLabel({
     >
       {children}
     </div>
+  );
+}
+
+function FavoriteToggleButton({
+  favorited,
+  onToggle,
+}: {
+  favorited: boolean;
+  onToggle: () => void;
+}) {
+  const label = favorited ? "Remove from favorites" : "Add to favorites";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={favorited}
+      aria-label={label}
+      className={cn(
+        "flex shrink-0 cursor-default items-center rounded-sm p-1 text-muted-foreground outline-none hover:bg-state-hover hover:text-foreground",
+        LIST_HOVER_TRANSITION,
+        favorited && "text-foreground",
+      )}
+    >
+      <Icon
+        name="Star"
+        className={cn("size-3.5 shrink-0", favorited && "fill-current")}
+      />
+    </button>
   );
 }
 

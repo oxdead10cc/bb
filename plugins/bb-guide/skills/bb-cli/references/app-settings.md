@@ -11,13 +11,14 @@ every window and client sees the same value.
 - Unknown keys and values of the wrong shape are rejected; the error names the
   keys bb knows.
 
-## Sidebar preferences
+## UI preferences
 
 - The server keeps a keyed, revisioned registry of sidebar layout preferences
   (`sidebar.organizationMode`, `sidebar.chronologicalSort`, the section
   orders, the collapsed-id lists, `sidebar.pluginPanelOrder`,
   `sidebar.visiblePluginPanels`, `sidebar.navigationProvider`,
-  `sidebar.threadListProvider`).
+  `sidebar.threadListProvider`) and of composer preferences
+  (`composer.favoriteModelPresets`).
 - `sidebar.organizationMode` defaults to Custom (`chronological`) when unset;
   existing server and legacy browser choices are preserved.
 - `bb settings ui list [--json]` prints every key with its value, revision,
@@ -198,6 +199,19 @@ Right-click Hide moves an action into More; Settings → Appearance → Sidebar 
 restores visibility and drag-reorders actions. CLI example:
 `bb settings ui set sidebar.hiddenFooterItems '["plugin:provider-usage/usage"]'`.
 Use `bb settings ui reset sidebar.hiddenFooterItems` to show everything again.
+
+## Favorite model presets
+
+- `composer.favoriteModelPresets` is a list of
+  `{ providerId, model, reasoningLevel, label? }` pinned above the model list
+  in the picker. Selecting one applies provider, model, and reasoning effort in
+  a single change; the star beside Reasoning adds or removes the combination
+  the picker currently shows.
+- The list is global across providers and holds 20 entries; a new favorite
+  beyond that drops the oldest. An entry whose model or provider is currently
+  unavailable is hidden rather than deleted.
+- Example:
+  `bb settings ui set composer.favoriteModelPresets '[{"providerId":"codex","model":"gpt-5.6","reasoningLevel":"medium","label":"Quick draft"}]'`.
 
 Disable anonymous usage telemetry with `bb settings general telemetryEnabled false`
 or Settings → General → Privacy & diagnostics → Share anonymous usage data. This server-wide preference

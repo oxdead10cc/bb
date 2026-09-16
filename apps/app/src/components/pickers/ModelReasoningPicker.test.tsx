@@ -7,7 +7,12 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import type { AvailableModel, ReasoningLevel } from "@bb/domain";
+import type {
+  AvailableModel,
+  FavoriteModelPreset,
+  ReasoningLevel,
+} from "@bb/domain";
+import { createStore, Provider as JotaiProvider } from "jotai";
 import type {
   SystemExecutionOptionsModelLoadError,
   SystemExecutionOptionsResponse,
@@ -26,7 +31,9 @@ import {
   buildModelNavRows,
   ModelReasoningPicker,
   type ModelReasoningPickerHandoff,
+  type ModelReasoningPickerHandoffSelection,
 } from "./ModelReasoningPicker";
+import { favoriteModelPresetsAtom } from "./favoriteModelPresets";
 import type { PickerOption } from "./OptionPicker";
 import type { ProviderPickerOption } from "./model-brand-prefix";
 import type { ModelPickerOption } from "./model-picker-option";
@@ -162,6 +169,8 @@ function renderPicker({
   splitPane = false,
   muted = false,
   handoff,
+  onApplySelection,
+  favoritePresets = [],
 }: {
   onSelectedProviderChange?: ((value: string) => void) | null;
   onModelChange?: (value: string) => void;
@@ -181,7 +190,11 @@ function renderPicker({
   splitPane?: boolean;
   muted?: boolean;
   handoff?: ModelReasoningPickerHandoff;
+  onApplySelection?: (selection: ModelReasoningPickerHandoffSelection) => void;
+  favoritePresets?: readonly FavoriteModelPreset[];
 } = {}) {
+  const favoritesStore = createStore();
+  favoritesStore.set(favoriteModelPresetsAtom, [...favoritePresets]);
   const { queryClient, wrapper } = createQueryClientTestHarness();
   queryClient.setQueryData(
     systemExecutionOptionsQueryKey({
@@ -202,28 +215,31 @@ function renderPicker({
 
   const picker = (
     <div data-app-composer>
-      <ModelReasoningPicker
-        providerOptions={pickerProviderOptions}
-        providerRouting={providerRouting}
-        selectedProviderId={selectedProviderId}
-        onSelectedProviderChange={onSelectedProviderChange ?? undefined}
-        hasMultipleProviders
-        modelValue={modelValue}
-        modelOptions={modelOptions}
-        moreModelOptions={moreModelOptions}
-        modelIsLoading={modelIsLoading}
-        modelLoadError={modelLoadError}
-        onModelChange={onModelChange}
-        reasoningValue={reasoningValue}
-        reasoningOptions={pickerReasoningOptions}
-        onReasoningChange={onReasoningChange}
-        fastModeEnabled={false}
-        onFastModeChange={vi.fn()}
-        showFastModeToggle={false}
-        muted={muted}
-        modal={false}
-        handoff={handoff}
-      />
+      <JotaiProvider store={favoritesStore}>
+        <ModelReasoningPicker
+          providerOptions={pickerProviderOptions}
+          providerRouting={providerRouting}
+          selectedProviderId={selectedProviderId}
+          onSelectedProviderChange={onSelectedProviderChange ?? undefined}
+          hasMultipleProviders
+          modelValue={modelValue}
+          modelOptions={modelOptions}
+          moreModelOptions={moreModelOptions}
+          modelIsLoading={modelIsLoading}
+          modelLoadError={modelLoadError}
+          onModelChange={onModelChange}
+          reasoningValue={reasoningValue}
+          reasoningOptions={pickerReasoningOptions}
+          onReasoningChange={onReasoningChange}
+          onApplySelection={onApplySelection}
+          fastModeEnabled={false}
+          onFastModeChange={vi.fn()}
+          showFastModeToggle={false}
+          muted={muted}
+          modal={false}
+          handoff={handoff}
+        />
+      </JotaiProvider>
       <button type="button">Composer action</button>
     </div>
   );
@@ -245,7 +261,12 @@ function renderPicker({
     { wrapper },
   );
 
-  return { onSelectedProviderChange, onModelChange, onReasoningChange };
+  return {
+    onSelectedProviderChange,
+    onModelChange,
+    onReasoningChange,
+    favoritesStore,
+  };
 }
 
 afterEach(() => {
@@ -1179,5 +1200,110 @@ describe("buildModelNavRows", () => {
       { kind: "model", option: primary[0] },
       { kind: "model", option: primary[1] },
     ]);
+  });
+});
+
+describe("ModelReasoningPicker favorites", () => {
+  const codexFavorite: FavoriteModelPreset = {
+    providerId: "codex",
+    model: "gpt-5.5",
+    reasoningLevel: "high",
+  };
+  const claudeFavorite: FavoriteModelPreset = {
+    providerId: "claude-code",
+    model: "claude-opus-4-7",
+    reasoningLevel: "medium",
+  };
+
+  function openPicker() {
+    fireEvent.click(
+      screen.getByRole("button", { name: "Provider, model and reasoning" }),
+    );
+  }
+
+  it("omits the section when nothing is favorited", () => {
+    renderPicker();
+    openPicker();
+    expect(screen.queryByText("Favorites")).toBeNull();
+  });
+
+  it("applies a same-provider favorite as one atomic selection", () => {
+    const onApplySelection = vi.fn();
+    const { onModelChange, onReasoningChange, onSelectedProviderChange } =
+      renderPicker({
+        favoritePresets: [codexFavorite],
+        onApplySelection,
+        reasoningValue: "medium",
+      });
+    openPicker();
+
+    expect(screen.getByText("Favorites")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^5\.5High/u }));
+
+    expect(onApplySelection).toHaveBeenCalledExactlyOnceWith(codexFavorite);
+    expect(onModelChange).not.toHaveBeenCalled();
+    expect(onReasoningChange).not.toHaveBeenCalled();
+    expect(onSelectedProviderChange).not.toHaveBeenCalled();
+  });
+
+  it("routes a cross-provider favorite through the handoff flow", () => {
+    const onSelect = vi.fn();
+    const onStart = vi.fn();
+    const onApplySelection = vi.fn();
+    renderPicker({
+      favoritePresets: [claudeFavorite],
+      onApplySelection,
+      handoff: {
+        sourceProviderId: "codex",
+        active: false,
+        onStart,
+        onExit: vi.fn(),
+        onSelect,
+      },
+    });
+    openPicker();
+
+    fireEvent.click(screen.getByRole("button", { name: /claude-opus-4-7/u }));
+
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(claudeFavorite);
+    expect(onApplySelection).not.toHaveBeenCalled();
+  });
+
+  it("falls back to separate callbacks when no atomic setter is supplied", () => {
+    const { onModelChange, onReasoningChange } = renderPicker({
+      favoritePresets: [codexFavorite],
+      reasoningValue: "medium",
+    });
+    openPicker();
+
+    fireEvent.click(screen.getByRole("button", { name: /^5\.5High/u }));
+
+    expect(onModelChange).toHaveBeenCalledExactlyOnceWith("gpt-5.5");
+    expect(onReasoningChange).toHaveBeenCalledExactlyOnceWith("high");
+  });
+
+  it("hides a favorite whose model left the active provider catalog", () => {
+    renderPicker({
+      favoritePresets: [{ ...codexFavorite, model: "gpt-retired" }],
+    });
+    openPicker();
+
+    expect(screen.queryByText("Favorites")).toBeNull();
+  });
+
+  it("stars and unstars the current model and effort together", () => {
+    const { favoritesStore } = renderPicker({ reasoningValue: "high" });
+    openPicker();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add to favorites" }));
+    expect(favoritesStore.get(favoriteModelPresetsAtom)).toEqual([
+      { providerId: "codex", model: "gpt-5.5", reasoningLevel: "high" },
+    ]);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove from favorites" }),
+    );
+    expect(favoritesStore.get(favoriteModelPresetsAtom)).toEqual([]);
   });
 });
