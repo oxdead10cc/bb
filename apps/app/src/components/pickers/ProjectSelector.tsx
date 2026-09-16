@@ -83,14 +83,21 @@ export function ProjectSelector({
   );
   const selected = value !== null ? projects.find((p) => p.id === value) : null;
   const fallback = !allowNoProject && !selected ? projects[0] : null;
+  const choseNoProject = allowNoProject && value === null;
   const triggerLabel = isLoading
     ? "Loading projects…"
-    : (selected?.name ?? fallback?.name ?? "Work in a project");
+    : (selected?.name ??
+      fallback?.name ??
+      (choseNoProject ? "Don't work in a project" : "Work in a project"));
   const compactTriggerLabel = isLoading
     ? "Loading…"
     : (selected?.name ?? fallback?.name ?? "No project");
   const triggerIcon =
-    isLoading || selected || fallback ? "Folder" : "FolderPlus";
+    isLoading || selected || fallback
+      ? "Folder"
+      : choseNoProject
+        ? "FolderMinus"
+        : "FolderPlus";
   const createProjectAction = createProject;
   const createProjectLabel = createProjectAction?.isCreating
     ? "Creating..."

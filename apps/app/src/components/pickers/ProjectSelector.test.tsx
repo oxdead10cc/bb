@@ -165,7 +165,7 @@ describe("ProjectSelector", () => {
     expect(onCreate).toHaveBeenCalledTimes(1);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Project: Work in a project" }),
+      screen.getByRole("button", { name: "Project: Don't work in a project" }),
     );
     expect(
       screen.getByRole<HTMLInputElement>("combobox", {

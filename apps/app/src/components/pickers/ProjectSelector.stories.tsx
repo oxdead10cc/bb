@@ -30,7 +30,7 @@ export function Overview() {
       </StoryRow>
       <StoryRow
         label="no project selected — optional mode"
-        hint='allowNoProject=true: trigger shows "Work in a project" + FolderPlus icon, menu adds "Don&apos;t work in a project" item'
+        hint='allowNoProject=true with value=null: trigger mirrors the chosen state and shows "Don&apos;t work in a project", menu adds the matching item'
       >
         <ProjectSelector
           projects={projects}
