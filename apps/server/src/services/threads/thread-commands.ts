@@ -588,6 +588,21 @@ export function dispatchThreadUnarchiveCommand(
   return true;
 }
 
+export function buildThreadCommandInterruptCommand(args: {
+  callId: string;
+  command: string;
+  environmentId: string;
+  threadId: string;
+}): Extract<HostDaemonCommand, { type: "thread.command.interrupt" }> {
+  return {
+    type: "thread.command.interrupt",
+    callId: args.callId,
+    command: args.command,
+    environmentId: args.environmentId,
+    threadId: args.threadId,
+  };
+}
+
 export function buildThreadStopCommand(
   args: ThreadStopCommandArgs,
 ): Extract<HostDaemonCommand, { type: "thread.stop" }> {

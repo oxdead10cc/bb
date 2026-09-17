@@ -523,6 +523,17 @@ export function useStopThread() {
   });
 }
 
+export function useInterruptThreadCommand() {
+  return useMutation({
+    meta: { errorMessage: "Failed to stop the command." },
+    mutationFn: async (args: {
+      callId: string;
+      command: string;
+      threadId: string;
+    }) => sdk.threads.interruptCommand(args),
+  });
+}
+
 export function useCancelThreadPlan() {
   const queryClient = useQueryClient();
 

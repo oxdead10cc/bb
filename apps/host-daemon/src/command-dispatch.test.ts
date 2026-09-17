@@ -171,6 +171,10 @@ function createRuntime(): FakeDispatchRuntime {
       hostedThreadIds.delete(args.threadId);
       return { providerCheckpointId: null };
     }),
+    interruptThreadCommand: vi.fn(async () => ({
+      outcome: "not-found" as const,
+      pid: null,
+    })),
     clearThreadGoal: vi.fn(async () => ({ cleared: true })),
     renameThread: vi.fn(async () => undefined),
     archiveThread: vi.fn(async () => undefined),
@@ -821,8 +825,7 @@ describe("dispatchCommand", () => {
       .mockReturnValueOnce(newRuntime);
     const manager = new RuntimeManager({
       createRuntime: createRuntimeSpy,
-      provisionWorkspace: async (args) =>
-        createWorkspace(args.path),
+      provisionWorkspace: async (args) => createWorkspace(args.path),
     });
     await manager.ensureEnvironment({
       environmentId: "env-old",
@@ -1147,8 +1150,7 @@ describe("dispatchCommand", () => {
       .mockReturnValueOnce(newRuntime);
     const manager = new RuntimeManager({
       createRuntime: createRuntimeSpy,
-      provisionWorkspace: async (args) =>
-        createWorkspace(args.path),
+      provisionWorkspace: async (args) => createWorkspace(args.path),
     });
     await manager.ensureEnvironment({
       environmentId: "env-old",
@@ -1198,8 +1200,7 @@ describe("dispatchCommand", () => {
       .mockReturnValueOnce(newRuntime);
     const manager = new RuntimeManager({
       createRuntime: createRuntimeSpy,
-      provisionWorkspace: async (args) =>
-        createWorkspace(args.path),
+      provisionWorkspace: async (args) => createWorkspace(args.path),
     });
     await manager.ensureEnvironment({
       environmentId: "env-old",

@@ -387,6 +387,7 @@ type ExpectedThreadsKey =
   | "fork"
   | "get"
   | "interactions"
+  | "interruptCommand"
   | "list"
   | "listRunning"
   | "markRead"

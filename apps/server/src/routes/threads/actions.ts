@@ -58,6 +58,7 @@ import { editThreadMessage } from "../../services/threads/thread-edit-message.js
 import { clearThreadContext } from "../../services/threads/thread-context-clear.js";
 import {
   buildExecutionOptions,
+  buildThreadCommandInterruptCommand,
   dispatchThreadUnarchiveCommand,
   prepareTurnSubmitCommandPayload,
 } from "../../services/threads/thread-commands.js";
@@ -372,6 +373,25 @@ export function registerThreadActionRoutes(app: Hono, deps: AppDeps): void {
     });
     await stopThreadForCurrentState(deps, thread, environment);
     return context.json({ ok: true });
+  });
+
+  post(routes.interruptCommand, async (context, body) => {
+    const thread = requirePublicThread(deps.db, context.req.param("id"));
+    const environment = requireThreadHostCommandEnvironment({
+      db: deps.db,
+      thread,
+    });
+    const result = await runLiveHostCommand(deps, {
+      command: buildThreadCommandInterruptCommand({
+        callId: body.callId,
+        command: body.command,
+        environmentId: environment.id,
+        threadId: thread.id,
+      }),
+      hostId: environment.hostId,
+      timeoutMs: LIVE_DAEMON_COMMAND_TIMEOUT_MS,
+    });
+    return context.json(result);
   });
 
   post(routes.compact, async (context) => {

@@ -20,6 +20,7 @@ import {
 import type {
   CreateQueuedMessageRequest,
   CreateThreadRequest,
+  InterruptThreadCommandResponse,
   QueuedMessageListQuery,
   EditMessageRequest,
   EditMessageResponse,
@@ -186,6 +187,7 @@ export type ThreadSendResult = SendMessageResponse;
 export type ThreadRetryResult = RetryTurnResponse;
 export type ThreadEditMessageResult = EditMessageResponse;
 export type ThreadStopResult = { ok: true };
+export type ThreadInterruptCommandResult = InterruptThreadCommandResponse;
 export type ThreadCompactResult = { ok: true };
 export type ThreadBannerActionResult = { ok: true };
 export type ThreadUnarchiveResult = { ok: true };
@@ -291,6 +293,11 @@ export interface ThreadRetryArgs {
 export interface ThreadActionArgs {
   signal?: AbortSignal;
   threadId: string;
+}
+
+export interface ThreadInterruptCommandArgs extends ThreadActionArgs {
+  callId: string;
+  command: string;
 }
 
 export interface ThreadStatusArgs extends ThreadActionArgs {
@@ -598,6 +605,9 @@ export interface ThreadsArea {
   send(args: ThreadSendArgs): Promise<ThreadSendResult>;
   spawn(args: ThreadSpawnArgs): Promise<ThreadSpawnResult>;
   stop(args: ThreadActionArgs): Promise<ThreadStopResult>;
+  interruptCommand(
+    args: ThreadInterruptCommandArgs,
+  ): Promise<ThreadInterruptCommandResult>;
   tabs: ThreadTabsArea;
   context(args: ThreadStatusArgs): Promise<ThreadContextResult>;
   timeline(args: ThreadTimelineArgs): Promise<ThreadTimelineResult>;
@@ -1308,6 +1318,14 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
         }),
       );
       return { ok: true };
+    },
+    async interruptCommand(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"].commands.interrupt.$post({
+          param: { id: input.threadId },
+          json: { callId: input.callId, command: input.command },
+        }),
+      );
     },
     async compact(input) {
       await transport.readVoid(

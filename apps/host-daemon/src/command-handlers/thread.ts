@@ -60,6 +60,25 @@ export async function deleteThreadStorage(
   await fs.rm(storagePath, { recursive: true, force: true });
 }
 
+/**
+ * Interrupts one shell command of a running turn. The runtime is only asked
+ * about threads it currently holds: with no live runtime there is no process to
+ * reach, and waking one would be pointless work.
+ */
+export async function interruptThreadCommand(
+  command: CommandOf<"thread.command.interrupt">,
+  options: CommandDispatchOptions,
+): Promise<HostDaemonCommandResult<"thread.command.interrupt">> {
+  const entry = options.runtimeManager.get(command.environmentId);
+  if (!entry?.runtime.hasThread(command.threadId)) {
+    return { outcome: "not-found", pid: null };
+  }
+  return entry.runtime.interruptThreadCommand({
+    threadId: command.threadId,
+    command: command.command,
+  });
+}
+
 type ThreadStartRuntimeCommand =
   | CommandOf<"thread.start">
   | CommandOf<"thread.rewind.prepare">;

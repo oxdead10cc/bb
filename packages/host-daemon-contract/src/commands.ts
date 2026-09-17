@@ -360,6 +360,14 @@ export const threadStopCommandSchema = hostDaemonThreadTargetSchema
   })
   .strict();
 
+export const threadCommandInterruptCommandSchema = hostDaemonThreadTargetSchema
+  .extend({
+    type: z.literal("thread.command.interrupt"),
+    callId: z.string().min(1),
+    command: z.string().min(1),
+  })
+  .strict();
+
 const threadStorageDeleteCommandSchema = hostDaemonThreadTargetSchema.extend({
   type: z.literal("thread.storage.delete"),
 });
@@ -1215,6 +1223,12 @@ const threadStopResultSchema = z
     providerCheckpointId: z.string().min(1).nullable(),
   })
   .strict();
+const threadCommandInterruptResultSchema = z
+  .object({
+    outcome: z.enum(["interrupted", "not-found", "ambiguous", "unmatchable"]),
+    pid: z.number().int().positive().nullable(),
+  })
+  .strict();
 const emptyCommandResultSchema = z.object({});
 const projectPathResultSchema = z.object({ path: z.string().min(1) }).strict();
 const projectInspectResultSchema = projectPathResultSchema
@@ -1451,6 +1465,15 @@ export const hostDaemonCommandRegistry = {
     transport: "settled",
     retryable: false,
     flushEventsBeforeResult: true,
+    envLane: null,
+  }),
+  "thread.command.interrupt": defineHostDaemonCommandDescriptor({
+    type: "thread.command.interrupt",
+    schema: threadCommandInterruptCommandSchema,
+    resultSchema: threadCommandInterruptResultSchema,
+    transport: "settled",
+    retryable: false,
+    flushEventsBeforeResult: false,
     envLane: null,
   }),
   "thread.storage.delete": defineHostDaemonCommandDescriptor({

@@ -171,6 +171,8 @@ import type {
   ResolveThreadMentionsResponse,
   RespondPluginInteractionRequest,
   SendMessageRequest,
+  InterruptThreadCommandRequest,
+  InterruptThreadCommandResponse,
   RetryTurnRequest,
   RetryTurnResponse,
   SendMessageResponse,
@@ -332,6 +334,7 @@ import {
   resolvePendingInteractionRequestSchema,
   resolveThreadMentionsRequestSchema,
   respondPluginInteractionRequestSchema,
+  interruptThreadCommandRequestSchema,
   retryTurnRequestSchema,
   sendMessageRequestSchema,
   editMessageRequestSchema,
@@ -1381,6 +1384,14 @@ export const publicApiRoutes = {
       method: "post",
       request: noRequest<PathId>(),
       response: jsonResponse<{ ok: true }>(),
+    }),
+    interruptCommand: defineRoute({
+      path: "/threads/:id/commands/interrupt",
+      method: "post",
+      request: jsonRequest<PathId, InterruptThreadCommandRequest>(
+        interruptThreadCommandRequestSchema,
+      ),
+      response: jsonResponse<InterruptThreadCommandResponse>(),
     }),
     compact: defineRoute({
       path: "/threads/:id/compact",

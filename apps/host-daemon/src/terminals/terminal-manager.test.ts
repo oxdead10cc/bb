@@ -214,6 +214,10 @@ function createFakeRuntime(): AgentRuntime {
     runTurn: vi.fn(async () => undefined),
     steerTurn: vi.fn(async () => steerTurnResult),
     stopThread: vi.fn(async () => ({ providerCheckpointId: null })),
+    interruptThreadCommand: vi.fn(async () => ({
+      outcome: "not-found" as const,
+      pid: null,
+    })),
     clearThreadGoal: vi.fn(async () => ({ cleared: true })),
     renameThread: vi.fn(async () => undefined),
     archiveThread: vi.fn(async () => undefined),

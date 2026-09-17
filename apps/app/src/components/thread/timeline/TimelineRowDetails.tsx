@@ -26,6 +26,8 @@ import {
   type TimelineWorkRowFullOutputState,
 } from "./useTimelineWorkRowFullOutput.js";
 import { buildThreadHostFileContentUrl } from "@/lib/file-content-urls";
+import { useInterruptThreadCommand } from "@/hooks/mutations/thread-runtime-mutations";
+import type { InterruptThreadCommandResponse } from "@bb/server-contract";
 import type { ThreadTimelineImageViewSrcResolver } from "./types.js";
 
 interface WorkRowBodyProps {
@@ -188,11 +190,65 @@ function OutputPreviewNote({ fullOutput, row }: OutputPreviewNoteProps) {
   );
 }
 
+function interruptOutcomeNote(
+  outcome: InterruptThreadCommandResponse["outcome"],
+): string | null {
+  switch (outcome) {
+    case "interrupted":
+      return null;
+    case "not-found":
+      return "This command is no longer running.";
+    case "ambiguous":
+      return "Several identical commands are running; bb cannot tell them apart.";
+    case "unmatchable":
+      return "This command is too short to identify among running processes.";
+    default:
+      return assertNever(outcome);
+  }
+}
+
+function CommandStopButton({ row }: CommandWorkRowBodyProps) {
+  const interruptCommand = useInterruptThreadCommand();
+  const note =
+    interruptCommand.data === undefined
+      ? null
+      : interruptOutcomeNote(interruptCommand.data.outcome);
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-1">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-6 cursor-pointer px-2"
+        disabled={interruptCommand.isPending}
+        data-testid="timeline-command-stop"
+        aria-label="Stop this command"
+        onClick={() => {
+          interruptCommand.mutate({
+            callId: row.callId,
+            command: row.command,
+            threadId: row.threadId,
+          });
+        }}
+      >
+        <Icon name="Square" />
+        {interruptCommand.isPending ? "Stopping..." : "Stop"}
+      </Button>
+      {note ? (
+        <span className="text-xs text-muted-foreground">{note}</span>
+      ) : null}
+    </div>
+  );
+}
+
 function CommandWorkRowBody({ row }: CommandWorkRowBodyProps) {
   const fullOutput = useTimelineWorkRowFullOutput(row);
   return (
     <div className="space-y-1">
       <TerminalOutputBlock
+        action={
+          row.status === "pending" ? <CommandStopButton row={row} /> : null
+        }
         commandLine={`$ ${row.command}`}
         metadataLines={row.source ? [`source: ${row.source}`] : []}
         output={fullOutput.output}

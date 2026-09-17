@@ -241,6 +241,10 @@ function createFakeRuntime() {
     stopThread: vi.fn(async (_args: StopThreadArgs) => ({
       providerCheckpointId: null,
     })),
+    interruptThreadCommand: vi.fn(async () => ({
+      outcome: "not-found" as const,
+      pid: null,
+    })),
     clearThreadGoal: vi.fn(async () => ({ cleared: true })),
     renameThread: vi.fn(async (_args: RenameThreadArgs) => undefined),
     archiveThread: vi.fn(async () => undefined),

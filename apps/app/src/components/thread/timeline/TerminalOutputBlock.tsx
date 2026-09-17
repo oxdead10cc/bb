@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import Convert from "ansi-to-html";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { getDetailScrollMaxHeightClass } from "../../ui/detail-scroll-size.js";
 import { TimelineDetailScroll } from "./TimelineDetailScroll.js";
 
 interface TerminalOutputBlockProps {
+  action?: ReactNode;
   output: string;
   commandLine: string;
   exitCode: number | null;
@@ -88,6 +89,7 @@ function terminalScrollContentKey({
 }
 
 export function TerminalOutputBlock({
+  action,
   commandLine,
   exitCode,
   metadataLines,
@@ -109,20 +111,29 @@ export function TerminalOutputBlock({
     metadataLines,
     output,
   });
+  const commandLineNode = commandLine ? (
+    <div
+      className={cn(
+        "overflow-auto whitespace-pre-wrap break-words",
+        action ? "min-w-0 flex-1" : "",
+        getDetailScrollMaxHeightClass("base"),
+      )}
+    >
+      {commandLine}
+    </div>
+  ) : null;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="px-4 py-3 font-mono text-xs leading-tight text-foreground opacity-70">
-        {commandLine ? (
-          <div
-            className={cn(
-              "overflow-auto whitespace-pre-wrap break-words",
-              getDetailScrollMaxHeightClass("base"),
-            )}
-          >
-            {commandLine}
+        {action ? (
+          <div className="flex items-start gap-2">
+            {commandLineNode ?? <div className="min-w-0 flex-1" />}
+            {action}
           </div>
-        ) : null}
+        ) : (
+          commandLineNode
+        )}
         {metadataLines.map((line, index) => (
           <div key={`${index}:${line}`} className="mt-1 text-muted-foreground">
             {line}

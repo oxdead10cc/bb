@@ -223,6 +223,22 @@ export interface StopThreadResult {
   providerCheckpointId: string | null;
 }
 
+export interface InterruptThreadCommandArgs {
+  threadId: string;
+  command: string;
+}
+
+export type InterruptThreadCommandOutcome =
+  | "interrupted"
+  | "not-found"
+  | "ambiguous"
+  | "unmatchable";
+
+export interface InterruptThreadCommandResult {
+  outcome: InterruptThreadCommandOutcome;
+  pid: number | null;
+}
+
 export interface AgentRuntimeProviderSession {
   providerId: string;
   providerThreadId: string;
@@ -309,6 +325,10 @@ export interface AgentRuntime {
   steerTurn(args: SteerTurnArgs): Promise<SteerTurnResult>;
 
   stopThread(args: StopThreadArgs): Promise<StopThreadResult>;
+
+  interruptThreadCommand(
+    args: InterruptThreadCommandArgs,
+  ): Promise<InterruptThreadCommandResult>;
 
   clearThreadGoal(args: ClearThreadGoalArgs): Promise<{ cleared: boolean }>;
 

@@ -46,3 +46,20 @@ it("reveals the complete command with the outer timeline row", () => {
   expect(renderedCommand.className).not.toContain("max-h-[2lh]");
   expect(renderedCommand.style.webkitLineClamp).toBe("");
 });
+
+it("puts an action beside the command line", () => {
+  render(
+    <TerminalOutputBlock
+      action={<button type="button">Stop</button>}
+      commandLine="$ go build ./..."
+      exitCode={null}
+      metadataLines={[]}
+      output=""
+      streaming
+    />,
+  );
+
+  const action = screen.getByRole("button", { name: "Stop" });
+  const commandLine = screen.getByText("$ go build ./...");
+  expect(action.parentElement).toBe(commandLine.parentElement);
+});

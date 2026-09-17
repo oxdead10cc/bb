@@ -71,6 +71,7 @@ import {
   discardThreadRewind,
   deleteThreadStorage,
   ensureThreadRuntime,
+  interruptThreadCommand,
   prepareThreadRewind,
   startThread,
   submitTurn,
@@ -463,6 +464,7 @@ const commandHandlers: CommandHandlerMap = {
       return submitTurn(command, entry, options);
     }),
   "thread.stop": stopThreadRuntime,
+  "thread.command.interrupt": interruptThreadCommand,
   "thread.storage.delete": async (command, options) => {
     const result = await stopThreadRuntime(command, options);
     await deleteThreadStorage(command, options);

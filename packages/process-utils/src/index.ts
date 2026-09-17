@@ -425,6 +425,190 @@ export async function killProcessesWithCwdUnder(
   return Array.from(signalled.values());
 }
 
+export interface ProcessSnapshot {
+  pid: number;
+  ppid: number;
+  pgid: number;
+  command: string;
+}
+
+const PROCESS_SNAPSHOT_LINE = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/;
+
+function processSnapshotPsArgs(): string[] {
+  return process.platform === "linux"
+    ? ["-ww", "-eo", "pid=,ppid=,pgid=,args="]
+    : ["-axww", "-o", "pid=,ppid=,pgid=,command="];
+}
+
+function parseProcessSnapshots(output: string): ProcessSnapshot[] {
+  const snapshots: ProcessSnapshot[] = [];
+  for (const line of output.split("\n")) {
+    const match = PROCESS_SNAPSHOT_LINE.exec(line);
+    if (!match) {
+      // A command containing newlines keeps flowing into the next ps line.
+      const previous = snapshots.at(-1);
+      if (previous && line !== "") {
+        previous.command = `${previous.command}\n${line}`;
+      }
+      continue;
+    }
+    snapshots.push({
+      pid: Number(match[1]),
+      ppid: Number(match[2]),
+      pgid: Number(match[3]),
+      command: match[4] ?? "",
+    });
+  }
+  return snapshots;
+}
+
+export async function listProcessSnapshots(): Promise<ProcessSnapshot[]> {
+  if (process.platform === "win32") {
+    return [];
+  }
+  const child = spawnPortableOutputProcess({
+    command: "ps",
+    args: processSnapshotPsArgs(),
+  });
+  const chunks: Buffer[] = [];
+  child.stdout.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+  child.stderr.resume();
+  await new Promise<void>((resolveExit) => {
+    child.once("error", () => resolveExit());
+    child.once("exit", () => resolveExit());
+  });
+  return parseProcessSnapshots(Buffer.concat(chunks).toString("utf8"));
+}
+
+export function collectDescendantPids(
+  snapshots: ProcessSnapshot[],
+  rootPid: number,
+): Set<number> {
+  const childrenByParent = new Map<number, number[]>();
+  for (const snapshot of snapshots) {
+    const siblings = childrenByParent.get(snapshot.ppid);
+    if (siblings) {
+      siblings.push(snapshot.pid);
+    } else {
+      childrenByParent.set(snapshot.ppid, [snapshot.pid]);
+    }
+  }
+  const descendants = new Set<number>();
+  const queue = [rootPid];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === undefined) {
+      break;
+    }
+    for (const child of childrenByParent.get(current) ?? []) {
+      if (descendants.has(child)) {
+        continue;
+      }
+      descendants.add(child);
+      queue.push(child);
+    }
+  }
+  return descendants;
+}
+
+const MIN_COMMAND_MATCH_NEEDLE_LENGTH = 6;
+
+/**
+ * The shell a provider CLI spawns carries the command inside its argv, but a
+ * provider may quote or escape it. The first line up to the first quote is the
+ * longest fragment that survives that wrapping verbatim.
+ */
+export function commandMatchNeedle(commandText: string): string | null {
+  const firstLine = commandText.split("\n")[0]?.trim() ?? "";
+  const quoteIndex = firstLine.search(/['"\\]/u);
+  const needle = (
+    quoteIndex === -1 ? firstLine : firstLine.slice(0, quoteIndex)
+  ).trim();
+  return needle.length >= MIN_COMMAND_MATCH_NEEDLE_LENGTH ? needle : null;
+}
+
+interface FindDescendantCommandProcessesArgs {
+  rootPid: number;
+  commandText: string;
+  snapshots?: ProcessSnapshot[];
+}
+
+/**
+ * Finds the processes below `rootPid` that are running `commandText`, keeping
+ * only the topmost one of each matching chain: a wrapper shell and the binary
+ * it execs both carry the command in their argv, and killing the wrapper takes
+ * the rest with it.
+ */
+export async function findDescendantCommandProcesses(
+  args: FindDescendantCommandProcessesArgs,
+): Promise<ProcessSnapshot[]> {
+  const needle = commandMatchNeedle(args.commandText);
+  if (needle === null) {
+    return [];
+  }
+  const snapshots = args.snapshots ?? (await listProcessSnapshots());
+  const descendants = collectDescendantPids(snapshots, args.rootPid);
+  const matches = snapshots.filter(
+    (snapshot) =>
+      descendants.has(snapshot.pid) && snapshot.command.includes(needle),
+  );
+  const matchedPids = new Set(matches.map((snapshot) => snapshot.pid));
+  const byPid = new Map(snapshots.map((snapshot) => [snapshot.pid, snapshot]));
+  return matches.filter((snapshot) => {
+    let parent = byPid.get(snapshot.ppid);
+    while (parent !== undefined && descendants.has(parent.pid)) {
+      if (matchedPids.has(parent.pid)) {
+        return false;
+      }
+      parent = byPid.get(parent.ppid);
+    }
+    return true;
+  });
+}
+
+interface InterruptProcessArgs {
+  snapshot: ProcessSnapshot;
+  graceMs: number;
+}
+
+const PROCESS_EXIT_POLL_MS = 50;
+
+/**
+ * Interrupts one command: SIGINT first so the process can unwind, SIGKILL once
+ * the grace period is over. A process that leads its own group is signalled
+ * group-wide to reach the children it spawned; anything else is signalled
+ * alone, so a shared group (the provider CLI's own) is never hit.
+ */
+export async function interruptProcess(
+  args: InterruptProcessArgs,
+): Promise<boolean> {
+  const { snapshot } = args;
+  const groupWide = supportsProcessGroups() && snapshot.pgid === snapshot.pid;
+  const target = groupWide ? -snapshot.pid : snapshot.pid;
+  // A non-interactive shell leaves its background jobs ignoring SIGINT, so the
+  // group can outlive its leader: keep watching the group, not just the leader.
+  const stillRunning = (): boolean =>
+    groupWide
+      ? isProcessGroupAlive({ pid: snapshot.pid })
+      : isProcessAlive(snapshot.pid);
+  try {
+    process.kill(target, "SIGINT");
+  } catch {
+    return false;
+  }
+  const deadline = Date.now() + args.graceMs;
+  while (Date.now() < deadline) {
+    if (!stillRunning()) {
+      return true;
+    }
+    await delay(PROCESS_EXIT_POLL_MS);
+  }
+  try {
+    process.kill(target, "SIGKILL");
+  } catch {}
+  return true;
+}
+
 export function resolveContainedPath(
   args: ResolveContainedPathArgs,
 ): string | null {

@@ -397,6 +397,19 @@ export type SendQueuedMessageRequest = z.infer<
   typeof sendQueuedMessageRequestSchema
 >;
 
+export const interruptThreadCommandRequestSchema = z.object({
+  callId: z.string().min(1),
+  command: z.string().min(1),
+});
+export type InterruptThreadCommandRequest = z.infer<
+  typeof interruptThreadCommandRequestSchema
+>;
+
+export interface InterruptThreadCommandResponse {
+  outcome: "interrupted" | "not-found" | "ambiguous" | "unmatchable";
+  pid: number | null;
+}
+
 export const reorderQueuedMessageRequestSchema = z.object({
   previousQueuedMessageId: z.string().min(1).nullable(),
   nextQueuedMessageId: z.string().min(1).nullable(),

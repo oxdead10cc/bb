@@ -33,6 +33,11 @@ import type {
   SendJsonRpcRequestArgs,
 } from "@bb/provider-bridge-protocol/bridge-kit";
 import {
+  commandMatchNeedle,
+  findDescendantCommandProcesses,
+  interruptProcess,
+} from "@bb/process-utils";
+import {
   assertProviderSupportsExecutionOptions,
   toProviderExecutionContext,
 } from "./execution-options.js";
@@ -61,6 +66,7 @@ import type {
   AgentRuntimeBridgeLaunch,
   AgentRuntimeExecutionOptions,
   AgentRuntimeOptions,
+  InterruptThreadCommandResult,
   ReapedIdleProviderSession,
 } from "./types.js";
 import {
@@ -183,6 +189,7 @@ type ProviderProcess = RuntimeProviderProcess;
 
 const threadGoalClearResultSchema = z.object({ cleared: z.boolean() }).strict();
 const THREAD_GOAL_CLEAR_EVENT_TIMEOUT_MS = 5_000;
+const INTERRUPT_COMMAND_GRACE_MS = 3_000;
 const PREPARED_THREAD_REWIND_TTL_MS = 5 * 60_000;
 const PREPARED_THREAD_REWIND_RETRY_MS = 30_000;
 
@@ -2187,6 +2194,45 @@ export function createAgentRuntime(options: AgentRuntimeOptions): AgentRuntime {
           };
         },
       });
+    },
+
+    // Deliberately outside runThreadOperation: the point of interrupting one
+    // command is to reach it while its turn is still running.
+    async interruptThreadCommand({
+      threadId,
+      command,
+    }): Promise<InterruptThreadCommandResult> {
+      if (commandMatchNeedle(command) === null) {
+        return { outcome: "unmatchable", pid: null };
+      }
+      const proc = requireProviderProcessForThread(threadId);
+      const rootPid = proc.child.pid;
+      if (rootPid === undefined) {
+        return { outcome: "not-found", pid: null };
+      }
+      const matches = await findDescendantCommandProcesses({
+        rootPid,
+        commandText: command,
+      });
+      if (matches.length === 0) {
+        return { outcome: "not-found", pid: null };
+      }
+      if (matches.length > 1) {
+        // Two identical commands are running below this provider: interrupting
+        // a guess would stop work the user never asked to stop.
+        return { outcome: "ambiguous", pid: null };
+      }
+      const [target] = matches;
+      if (target === undefined) {
+        return { outcome: "not-found", pid: null };
+      }
+      const interrupted = await interruptProcess({
+        snapshot: target,
+        graceMs: INTERRUPT_COMMAND_GRACE_MS,
+      });
+      return interrupted
+        ? { outcome: "interrupted", pid: target.pid }
+        : { outcome: "not-found", pid: null };
     },
 
     async clearThreadGoal({ threadId }) {

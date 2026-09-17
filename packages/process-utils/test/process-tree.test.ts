@@ -12,10 +12,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  collectDescendantPids,
+  commandMatchNeedle,
+  findDescendantCommandProcesses,
+  interruptProcess,
   isProcessGroupAlive,
   killProcessGroup,
   killProcessesWithCwdUnder,
   listProcessesWithCwdUnder,
+  type ProcessSnapshot,
   spawnPortablePipedProcess,
   stopProcessGroupLeaderFirst,
 } from "../src/index.js";
@@ -265,5 +270,115 @@ posixOnly("process tree helpers", () => {
     const dir = mkdtempSync(join(tmpdir(), "bb-cwd-empty-"));
     cleanupDirs.push(dir);
     expect(await listProcessesWithCwdUnder({ directory: dir })).toEqual([]);
+  });
+});
+
+describe("commandMatchNeedle", () => {
+  it("keeps a plain command whole", () => {
+    expect(commandMatchNeedle("go build ./... && make lint")).toBe(
+      "go build ./... && make lint",
+    );
+  });
+
+  it("stops at the first quote, which a provider may re-escape", () => {
+    expect(commandMatchNeedle(`go test ./... -run "TestFoo"`)).toBe(
+      "go test ./... -run",
+    );
+  });
+
+  it("uses only the first line of a multi-line command", () => {
+    expect(commandMatchNeedle("go test ./...\nmake lint")).toBe(
+      "go test ./...",
+    );
+  });
+
+  it("refuses a fragment too short to identify a process", () => {
+    expect(commandMatchNeedle("ls")).toBeNull();
+    expect(commandMatchNeedle(`echo "hello world"`)).toBeNull();
+    expect(commandMatchNeedle(`'quoted'`)).toBeNull();
+  });
+});
+
+describe("descendant command lookup", () => {
+  const snapshots: ProcessSnapshot[] = [
+    { pid: 10, ppid: 1, pgid: 10, command: "bridge" },
+    { pid: 20, ppid: 10, pgid: 10, command: "claude" },
+    { pid: 30, ppid: 20, pgid: 30, command: "zsh -c eval 'go build ./...'" },
+    { pid: 40, ppid: 30, pgid: 30, command: "go build ./..." },
+    { pid: 50, ppid: 1, pgid: 50, command: "unrelated go build ./..." },
+  ];
+
+  it("walks the whole subtree and excludes the root itself", () => {
+    expect(collectDescendantPids(snapshots, 10)).toEqual(new Set([20, 30, 40]));
+  });
+
+  it("returns nothing for a leaf", () => {
+    expect(collectDescendantPids(snapshots, 40)).toEqual(new Set());
+  });
+
+  it("keeps only the topmost process of a matching chain", async () => {
+    const matches = await findDescendantCommandProcesses({
+      rootPid: 10,
+      commandText: "go build ./...",
+      snapshots,
+    });
+    expect(matches.map((snapshot) => snapshot.pid)).toEqual([30]);
+  });
+
+  it("ignores a matching process outside the subtree", async () => {
+    const matches = await findDescendantCommandProcesses({
+      rootPid: 20,
+      commandText: "unrelated go build ./...",
+      snapshots,
+    });
+    expect(matches).toEqual([]);
+  });
+});
+
+posixOnly("interruptProcess", () => {
+  const cleanupPids: number[] = [];
+
+  afterEach(() => {
+    for (const pid of cleanupPids) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {}
+    }
+    cleanupPids.length = 0;
+  });
+
+  it("finds a running command below a root and stops it with its children", async () => {
+    const commandText = `MARKER=bb-interrupt-${process.pid}; sleep 300`;
+    const child = spawnPortablePipedProcess({
+      command: "sh",
+      args: ["-c", `${commandText} & echo $!; wait`],
+      detached: true,
+    });
+    const memberPid = Number(await readFirstLine(child.stdout));
+    cleanupPids.push(child.pid ?? 0, memberPid);
+
+    const matches = await findDescendantCommandProcesses({
+      rootPid: process.pid,
+      commandText,
+    });
+    expect(matches.map((snapshot) => snapshot.pid)).toEqual([child.pid]);
+
+    const first = matches[0];
+    expect(first).toBeDefined();
+    expect(await interruptProcess({ snapshot: first!, graceMs: 2000 })).toBe(
+      true,
+    );
+    await waitFor(() => !isAlive(memberPid));
+    expect(isAlive(child.pid ?? 0)).toBe(false);
+  }, 20000);
+
+  it("reports failure for a process that is already gone", async () => {
+    const snapshot: ProcessSnapshot = {
+      pid: 2147483646,
+      ppid: 1,
+      pgid: 2147483646,
+      command: "gone",
+    };
+    expect(await interruptProcess({ snapshot, graceMs: 10 })).toBe(false);
   });
 });

@@ -363,6 +363,9 @@ export function createFakeRuntime() {
       providerSessionsByThreadId.delete(args.threadId);
       return { providerCheckpointId: null };
     },
+    async interruptThreadCommand() {
+      return { outcome: "not-found" as const, pid: null };
+    },
     async clearThreadGoal() {
       return { cleared: true };
     },
