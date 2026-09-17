@@ -3,8 +3,8 @@ export type ClaudeCodeReasoningLevel =
   | "medium"
   | "high"
   | "xhigh"
-  | "ultracode"
-  | "max";
+  | "max"
+  | "ultracode";
 
 export interface ClaudeCodeReasoningEffortData {
   reasoningEffort: ClaudeCodeReasoningLevel;
@@ -24,12 +24,12 @@ export const CLAUDE_XHIGH_CAPABLE_REASONING_EFFORT_DATA: readonly ClaudeCodeReas
     { reasoningEffort: "medium", description: "Medium reasoning effort" },
     { reasoningEffort: "high", description: "High reasoning effort" },
     { reasoningEffort: "xhigh", description: "Extra high reasoning effort" },
+    { reasoningEffort: "max", description: "Maximum reasoning effort" },
     {
       reasoningEffort: "ultracode",
       description:
         "Extra high reasoning effort plus multi-agent workflow orchestration",
     },
-    { reasoningEffort: "max", description: "Maximum reasoning effort" },
   ];
 
 export const DEFAULT_CLAUDE_CODE_MODEL = "claude-opus-5[1m]";

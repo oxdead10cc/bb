@@ -175,23 +175,26 @@ function buildCatalogModel(entry: ClaudeCodeCatalogEntry): AvailableModel {
 }
 
 function buildDiscoveredModel(modelInfo: ModelInfo): AvailableModel {
+  const ladderEfforts = modelInfo.supportedEffortLevels?.length
+    ? modelInfo.supportedEffortLevels.flatMap((level) => {
+        switch (level) {
+          case "low":
+            return [LOW_REASONING_EFFORT];
+          case "medium":
+            return [MEDIUM_REASONING_EFFORT];
+          case "high":
+            return [HIGH_REASONING_EFFORT];
+          case "xhigh":
+            return [XHIGH_REASONING_EFFORT];
+          case "max":
+            return [MAX_REASONING_EFFORT];
+        }
+      })
+    : [LOW_REASONING_EFFORT];
   const supportedReasoningEfforts = cloneReasoningEfforts(
-    modelInfo.supportedEffortLevels?.length
-      ? modelInfo.supportedEffortLevels.flatMap((level) => {
-          switch (level) {
-            case "low":
-              return [LOW_REASONING_EFFORT];
-            case "medium":
-              return [MEDIUM_REASONING_EFFORT];
-            case "high":
-              return [HIGH_REASONING_EFFORT];
-            case "xhigh":
-              return [XHIGH_REASONING_EFFORT, ULTRACODE_REASONING_EFFORT];
-            case "max":
-              return [MAX_REASONING_EFFORT];
-          }
-        })
-      : [LOW_REASONING_EFFORT],
+    modelInfo.supportedEffortLevels?.includes("xhigh")
+      ? [...ladderEfforts, ULTRACODE_REASONING_EFFORT]
+      : ladderEfforts,
   );
   const supportedLevels = supportedReasoningEfforts.map(
     (effort) => effort.reasoningEffort,

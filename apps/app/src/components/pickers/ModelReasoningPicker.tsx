@@ -1110,10 +1110,7 @@ export function ModelReasoningPicker({
               </span>
             ) : null}
             {triggerReasoningLabel ? (
-              <span
-                className="shrink-0 text-subtle-foreground"
-                data-promptbox-hide-compact=""
-              >
+              <span className="shrink-0 text-subtle-foreground">
                 {triggerReasoningLabel}
               </span>
             ) : null}

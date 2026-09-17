@@ -131,7 +131,7 @@ describe("appendCustomModels", () => {
       models[0].supportedReasoningEfforts.map(
         (effort) => effort.reasoningEffort,
       ),
-    ).toEqual(["low", "medium", "high", "xhigh", "ultracode", "max"]);
+    ).toEqual(["low", "medium", "high", "xhigh", "max", "ultracode"]);
   });
 
   it("uses the provider reasoning ladder for codex and pi custom models", () => {

@@ -336,8 +336,8 @@ describe("first-party provider plugins", () => {
           "medium",
           "high",
           "xhigh",
-          "ultracode",
           "max",
+          "ultracode",
         ]);
         expect(claude?.fallbackModels.map((model) => model.id)).toContain(
           "claude-opus-5[1m]",
