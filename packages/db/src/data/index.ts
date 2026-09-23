@@ -81,6 +81,7 @@ export {
   lifecycleThreadTreeIdsForProject,
   listLifecycleThreadTree,
   listLifecycleThreadDependents,
+  listArchivedThreadsPendingTeardown,
   listRunningThreads,
   listThreadsWithPendingInteractionState,
   listThreadsWithPendingInteractionStateForProjects,
@@ -119,6 +120,8 @@ export {
 } from "./app-settings.js";
 export { getStoredThreadTabs, replaceStoredThreadTabs } from "./thread-tabs.js";
 export {
+  getStoredUiPreferenceDefault,
+  listStoredUiPreferenceDefaults,
   listStoredUiPreferences,
   overwriteStoredUiPreference,
   replaceStoredUiPreference,
@@ -274,7 +277,13 @@ export {
   getActiveStoredTurnId,
   hasRootStoredTurnStarted,
   hasStoredTurnStarted,
+  classifyStoredProviderThreadClaim,
+  wouldRemoveSharedProviderSessionClaim,
   getLastStoredProviderThreadId,
+  getStoredProviderSession,
+  resolveStoredProviderSessions,
+  type StoredProviderSession,
+  type StoredProviderThreadClaimClass,
   getLastStoredTurnRequestEvent,
   getStoredTurnRequestEventForTurn,
   getLatestThreadOutputEventRow,
@@ -287,7 +296,7 @@ export {
   listContextWindowUsageRows,
   listEvents,
   listStoredConversationOutlineEventRows,
-  listTimelineSegmentAnchorsDescending,
+  listTimelineWindowHintsDescending,
   getFirstParentedTimelineBoundarySequence,
   hasTimelineGroupingContextRowsInRange,
   listStoredEventRowsInSequenceRange,
@@ -316,7 +325,7 @@ export {
   listStoredTurnStartedKeys,
   listStoredTurnStartedRowsByTurnIdsUpToSequence,
   getLatestThreadInterruptedReason,
-  getLatestStoredRateLimitsEventForProvider,
+  getLatestStoredRateLimitsEvent,
   getLatestStoredThreadEventOfTypes,
   listLatestThreadStateEventRowsByThreadIds,
   listLatestBackgroundTaskStateRowsByItemIds,
@@ -329,8 +338,8 @@ export {
   listThreadTurnInterruptionEventStates,
   MissingStoredTurnStartedError,
   pruneBackgroundTaskProgressEvents,
-  pruneContextWindowUsageEventsBeforeSequence,
-  pruneTokenUsageEventsBeforeSequence,
+  pruneContextWindowUsageEvents,
+  pruneTokenUsageEvents,
   pruneResolvedItemDeltas,
   pruneThreadEventsBeforeSequence,
 } from "./events.js";
@@ -360,7 +369,7 @@ export type {
   ScopedItemRef,
   StoredEventRow,
   StoredThreadEventDataRow,
-  StandardTimelineSegmentAnchorRow,
+  TimelineWindowHint,
   ThreadClientTurnRequestKey,
   StoredTurnRequestEventRow,
 } from "./events.js";
@@ -425,6 +434,7 @@ export {
   listQueuedThreadMessagesForApi,
   listQueuedThreadMessagesByWaitHolder,
   listQueuedThreadMessagesWaitingOnKind,
+  listRetryableFailedQueuedThreadMessages,
   listThreadIdsWithHostOfflineQueueWaits,
   releaseQueuedMessageClaim,
   requeueClaimedQueuedThreadMessages,
@@ -477,6 +487,13 @@ export {
 } from "./maintenance.js";
 export * from "./machines.js";
 export {
+  advanceThreadPruning,
+  getNextThreadPruningPolicy,
+  THREAD_PRUNING_POLICIES,
+} from "./thread-pruning.js";
+export type { ThreadPruningPolicy } from "./thread-pruning.js";
+export { pruneRateLimitSnapshots } from "./rate-limit-pruning.js";
+export {
   listPathInstalledPluginSources,
   rerootServerOwnedPluginPaths,
   swapServerHostRoles,
@@ -486,3 +503,7 @@ export {
   type SwapServerHostRolesArgs,
   type SwapServerHostRolesResult,
 } from "./server-move.js";
+
+export * from "./project-attachments.js";
+
+export * from "./project-attachment-backfill.js";

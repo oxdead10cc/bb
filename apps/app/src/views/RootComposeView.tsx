@@ -136,7 +136,9 @@ import {
   toFilePreviewLineRange,
 } from "@/lib/live-file-navigation";
 import {
+  useRootComposeForkSeed,
   useRootComposeProjectId,
+  useRootComposeSectionId,
   useSetRootComposeProjectId,
 } from "@/lib/root-compose-selection";
 import {
@@ -506,9 +508,8 @@ export function RootComposeView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const createThread = useCreateThread();
-  const [rootComposeSectionId, setRootComposeSectionId] = useState<
-    string | null
-  >(() => readSectionIdFromLocationState(location.state));
+  const [rootComposeSectionId, setRootComposeSectionId] =
+    useRootComposeSectionId();
   const [lastCreatedThreadId, setLastCreatedThreadId] = useState<string | null>(
     null,
   );
@@ -517,16 +518,14 @@ export function RootComposeView() {
   );
   const [navigateToThreadAfterCreate] =
     useNavigateToThreadAfterCreatePreference();
-  const [forkSeed, setForkSeed] = useState<ForkThreadCreateSeed | null>(() =>
-    readForkThreadCreateSeedFromLocationState(location.state),
-  );
+  const [forkSeed, setForkSeed] = useRootComposeForkSeed();
 
   const handleProjectChange = useCallback(
     (projectId: string) => {
       setForkSeed(null);
       setRootComposeProjectId(projectId);
     },
-    [setRootComposeProjectId],
+    [setForkSeed, setRootComposeProjectId],
   );
   const handleSubmit = useCallback(
     async (request: NewThreadComposerSubmission) => {
@@ -583,6 +582,8 @@ export function RootComposeView() {
       navigate,
       navigateToThreadAfterCreate,
       rootComposeSectionId,
+      setForkSeed,
+      setRootComposeSectionId,
     ],
   );
   const composerSeed = useMemo(
@@ -1939,10 +1940,13 @@ function RootComposeSurface({
     />
   );
 
+  const isCompactHomeLayout = isCompactViewport && !showEmptyWelcome;
+
   const promptBox = renderPromptBox({
     id: "root-compose-prompt",
     autoFocus: !isProviderCliVersionBlocked,
     allowSoftKeyboardAutoFocus: isCompactViewport,
+    mentionMenuPlacement: isCompactHomeLayout ? "top" : "bottom",
     banner: promptBanner,
     header: promptHeader,
     blockedReason: isProviderCliVersionBlocked
@@ -1990,6 +1994,7 @@ function RootComposeSurface({
                   ? ROOT_COMPOSE_EMPTY_WELCOME_CONTENT_CLASS
                   : ROOT_COMPOSE_SIDEBAR_ACTION_ALIGNED_TOP_PADDING_CLASS
               }
+              isCompactHomeLayout={isCompactHomeLayout}
               compactScrollContent={
                 showEmptyWelcome ? null : (
                   <RootComposeMobileRecents

@@ -63,7 +63,6 @@ bb machine create --provider <id> Create a standalone machine
 bb machine enroll --bootstrap-file <path>
 --bootstrap-env <NAME> Alternative private bundle source
 bb machine show <id-or-name> Show machine details
-bb machine join-code Create a machine pairing code
 bb machine rename <id-or-name> <name> Rename a machine
 bb machine retry-update <id-or-name> Retry a pending daemon update now
 bb machine reconcile <id-or-name> Reconcile compute with core’s recorded state
@@ -193,6 +192,11 @@ experiment in Settings → Experiments or with
 Move server here, and `bb server move`, `bb server export`, and deleting an old
 server copy from the server are refused.
 
+Agents must not move a server, abandon a move, or unlock an old copy without
+the user's explicit confirmation in the conversation. Run `--check`, show the
+user the checklist, and wait for their confirmation; don't pass `--yes` to skip
+the confirmation on their behalf.
+
 A move copies the server's data (database, settings, plugin data, attachments)
 to another persistent machine, points every machine and app at it, and keeps the
 old computer running as a regular machine. Worktrees, thread storage, and
@@ -214,6 +218,7 @@ checkouts stay on the machines that own them.
     --force                               Skip the new-server health check
   bb server allow-connect                 Turn bb connect on for an imported copy
   bb server delete-old-copy               Delete the old copy a move left here
+  bb server install-machine-service       Keep this computer connected after a move
 
 When the target never confirms that it took over, the move waits in
 `recovery_required`: the old server stays up and read-only, and bb finishes the
@@ -254,7 +259,18 @@ once the original server is stopped (`--json` prints `dataDir` and
 After a move, the old computer's data directory keeps `server-moved.json`, so
 bb there refuses to start the old server and runs as a regular machine.
 `bb server delete-old-copy` deletes the server files left behind and keeps that
-lock. `bb server unlock` removes the lock as a last resort: everything since
+lock. The desktop app installs the persistent, self-updating service a
+CLI-installed machine gets as soon as its server moves, and on later launches
+if the service is missing; until that succeeds (it needs Node.js 22.19 or newer
+on the PATH), the app keeps that machine connected only while it is open and
+explains why once. After a move from `bb-app`, or to retry by hand,
+`bb server install-machine-service [--data-dir <dir>] [--yes] [--json]` installs
+the same service: it needs
+Node.js 22.19 or newer on the PATH, stops bb running from that directory, and
+runs `install-machine.sh --adopt --data-dir <dir>`, which keeps the machine ID,
+downloads the new server's bb-app package, and installs the launchd or systemd
+service (`--json` prints `dataDir`, `serverUrl`, `toHostName`, and
+`serviceFile`). `bb server unlock` refuses while that service exists. `bb server unlock` removes the lock as a last resort: everything since
 the move is lost on that copy, and the new server must be stopped first. It
 refuses while the new server still answers (`<serverUrl>/health`, or
 `/api/v1/system/version` with this computer's machine grant for bb connect)
@@ -268,6 +284,10 @@ calls a server. The SDK equivalents are `sdk.experimental_server.checkMove`,
 
 ## Local daemon lifecycle
 
+`install-machine.sh --adopt --data-dir <path>` installs the service for a data
+directory that is already enrolled, reading its machine ID from `auth.json` and
+its server address and headers from `config.json`; `bb server
+install-machine-service` runs it for the directory a server move left behind.
 `install-machine.sh --start|--stop|--uninstall --host-id <id>` starts, stops or removes an
 owned local installation. Optional `--server-url <url>` and `--data-dir <path>`
 assert the expected installation. BB_DATA_DIR is treated as an assertion too.
@@ -350,6 +370,21 @@ original `BB_DATA_DIR` if explicitly configured, to remove its installation.
 
 ## Machine environment
 
+Use `--project <id>` on `bb machine env list|set|unset` for project overrides;
+omit it for global settings. Project overrides follow the project across
+machines and worktrees, including the primary host. Empty strings override;
+unset restores inheritance. List masks all values and includes inherited global
+rows for project scope. Set and unset update a single variable atomically.
+
+Settings → Environment variables edits machine variables and has a scope
+selector under its header. Project settings → Advanced settings opens the same editor for that
+project. Changes apply
+to the next agent turn and new terminals/commands. Project values are passed per
+operation and never installed into the daemon's global environment. They override
+global values; provider contributions retain precedence. All scopes share an
+encrypted database table and the existing machine-environment encryption key.
+
+
 Repository setup receives freshly resolved machine variables on each dispatch,
 including recovery. Values are sent transiently to the setup process and are
 not stored in provisioning requests. Existing attached paths skip setup.
@@ -359,11 +394,11 @@ health. `bb machine env set NAME [--note text] --json` reads its value
 from stdin, removing one trailing newline; values are never accepted in argv.
 `bb machine env unset NAME --json` removes an override. All values are encrypted in the database and never returned by list or set.
 
-Settings → Machines → Machine environment edits variables inline. Add, remove,
-or import .env rows, then Save variables; Discard changes leaves saved values
+Settings → Environment variables edits variables inline. Add, remove,
+then Save variables; Discard changes leaves saved values
 untouched. Saved secrets can be replaced but never revealed. The automatic
 GH_TOKEN row shows server login health; a custom GH_TOKEN overrides it. User variables
-override built-in values for all enrolled machine hosts, excluding local hosts.
+override built-in values on every connected host, including the primary host.
 Agent-provider variables win over these host values for agent turns. The server synchronizes these values into the daemon environment at connection
 and whenever settings change. Background commands and newly launched processes
 inherit them, including git and gh operations. Removing an override restores the
@@ -378,7 +413,9 @@ effect on the next call after all active calls finish. Continuous overlapping
 calls can keep the previous values until the worker becomes idle.
 
 The server's gh login provides GitHub credentials, a Git environment-only HTTPS
-helper and SSH rewrites, and commit identity. The built-in row reports logged in,
+helper and SSH rewrites, and commit identity to non-primary hosts. The primary
+host uses its local Git authentication unless a user supplies an explicit global
+or project GH_TOKEN. The built-in row reports logged in,
 not logged in, or overridden. No credentials are installed in images or global
 Git config. SDK: system.machineEnvironment() and
 system.replaceMachineEnvironment({ variables }). Replacement is atomic; pass
@@ -392,10 +429,10 @@ new continuation turn after restore; interrupted turns are never reported succes
 
 Resuming a machine restores its provider state without rerunning environment setup.
 
-Automatic machine GitHub credentials are enabled by default. Use
+Automatic GitHub credential forwarding to non-primary hosts is enabled by default. Use
 `bb settings general machineGitCredentialsEnabled false` to stop forwarding the
-server gh credentials to machines; `true` enables them again. In Machines →
-Advanced settings, the automatic GH_TOKEN switch controls the same setting.
+server gh credentials to machines; `true` enables them again. In Settings →
+Environment variables, the automatic GH_TOKEN switch controls the same setting.
 This does not log the server out or suppress an explicit custom GH_TOKEN.
 Changes apply to new turns, setup commands and terminals.
 

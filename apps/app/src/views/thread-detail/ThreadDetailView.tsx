@@ -1213,6 +1213,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
   const createThreadInEnvironment = useCreateThreadInEnvironment({
     projectId,
     environmentId: thread?.environmentId ?? "",
+    sectionId: thread?.sectionId ?? null,
   });
   const { providers: registeredEnvironmentProviders } =
     useSystemEnvironmentProviders();
@@ -2519,12 +2520,18 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       canUseGitUi={canUseGitUi}
       contextWindowUsage={contextWindowUsage}
       environmentCheckout={threadCheckoutDisplay}
-      environmentCompactLabel={composerEnvironmentChrome?.environmentCompactLabel}
+      environmentCompactLabel={
+        composerEnvironmentChrome?.environmentCompactLabel
+      }
       environmentHost={composerEnvironmentChrome?.environmentHost}
       environmentIcon={composerEnvironmentChrome?.environmentIcon}
       environmentLabel={composerEnvironmentChrome?.environmentLabel}
-      environmentMachineProvider={composerEnvironmentChrome?.environmentMachineProvider}
-      environmentProviderName={composerEnvironmentChrome?.environmentProviderName}
+      environmentMachineProvider={
+        composerEnvironmentChrome?.environmentMachineProvider
+      }
+      environmentProviderName={
+        composerEnvironmentChrome?.environmentProviderName
+      }
       environmentGoneStatus={threadEnvironmentGoneStatus}
       environmentHostId={environment?.hostId}
       isEnvironmentActionPending={requestEnvironmentAction.isPending}
@@ -2918,6 +2925,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
                 : undefined,
             }}
             secondaryPanel={{
+              canNavigateTabs: isFocused,
               activeTab: activeFixedSecondaryTab,
               canUseGitUi,
               gitDiffTabStatus,

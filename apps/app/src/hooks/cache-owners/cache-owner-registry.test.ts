@@ -87,7 +87,9 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
   ],
   "hooks/cache-owners/environment-workspace-cache-owner.ts": [
     "environmentQueryKey",
+    "sidebarNavigationQueryKey",
     "threadSearchQueryKeyPrefix",
+    "threadsQueryKey",
   ],
   "hooks/cache-owners/host-directory-cache-owner.ts": ["hostDirectoryQueryKey"],
   "hooks/cache-owners/mutation-cache-effects.ts": [
@@ -140,6 +142,7 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
   ],
   "hooks/cache-owners/realtime-cache-registry.ts": [
     "allHostQueryKeyPrefix",
+    "allMachineEnvironmentQueryKeyPrefix",
     "allPluginCatalogSearchQueryKeyPrefix",
     "allPluginContributionsQueryKeyPrefix",
     "allPluginListQueryKeyPrefix",
@@ -186,6 +189,7 @@ const CACHE_OWNER_QUERY_KEY_IMPORTS: CacheOwnerQueryKeyImportRegistry = {
     "allEnvironmentQueryKeyPrefix",
     "allEnvironmentWorkStatusQueryKeyPrefix",
     "allHostQueryKeyPrefix",
+    "allMachineEnvironmentQueryKeyPrefix",
     "allProjectPathsQueryKeyPrefix",
     "allSystemExecutionOptionsQueryKeyPrefix",
     "allSystemMachineProvidersQueryKeyPrefix",

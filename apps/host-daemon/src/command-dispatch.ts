@@ -99,7 +99,7 @@ type RuntimeStopCommand =
 async function stopThreadRuntime(
   command: RuntimeStopCommand,
   options: CommandDispatchOptions,
-): Promise<{ providerCheckpointId: string | null }> {
+): Promise<HostDaemonCommandResult<"thread.stop">> {
   const released =
     await options.runtimeManager.releaseThreadFromOtherEnvironments({
       activeTurn: "interrupt",
@@ -119,7 +119,7 @@ async function stopThreadRuntime(
       entry.runtime.getActiveTurnId(command.threadId) !== null
     ) {
       await options.eventSink.flush();
-      return { providerCheckpointId };
+      return { providerCheckpointId, activeTurnRetained: true };
     }
     if (command.type !== "thread.stop" || command.intent !== "release") {
       await entry.runtime.waitForActiveTurn(command.threadId, {

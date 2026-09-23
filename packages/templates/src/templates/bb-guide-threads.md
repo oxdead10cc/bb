@@ -12,10 +12,14 @@ Every command supports --json for machine-readable output.
 Spawning:
 
   bb thread spawn --project <id> --prompt "..." [options]
+  bb thread spawn --project <id> --prompt-file <path> [options]
 
-    --prompt <prompt>              Initial prompt (required)
+    --prompt <prompt>              Initial prompt (one of --prompt or --prompt-file is required)
+    --prompt-file <path>           Read the prompt from a file; `-` reads stdin. Use this for
+                                   multi-line or Markdown prompts: inside double quotes the shell
+                                   runs `backticks` and $(...) before bb sees them
     --title <title>                Thread title
-    --project <id>                 Project (required)
+    --project <id>                 Project (required; when omitted the error prints this thread's project ID to add)
     --parent-thread <id>           Parent thread (may be in another project)
     --parent-self                  Parent to the current thread (BB_THREAD_ID)
     --lifecycle-owner-thread <id>  Archive/delete with this owner
@@ -61,7 +65,7 @@ Spawning:
   accept-edits uses workspace sandboxing with user-reviewed escalation. auto uses
   the same workspace sandbox with provider-native automatic review. full is the
   explicit sandbox and approval bypass. Plan mode is separate from permissions.
-  Subagents inherit the parent's permission mode by default, and the parent's mode is a hard ceiling: a child's requested mode can lower it but never exceed it, so a sandboxed parent cannot spawn a full-access child.
+  Subagents inherit the parent's permission mode by default, adapted to the child provider's supported modes. Explicit requests and a thread's recorded mode take precedence; nesting a thread does not cap its permissions. The host permission ceiling still applies.
   Parenting is opt-in. Inside a thread, pass --parent-self to parent the new thread to the current thread.
   Hidden threads are for plugin/background workers. They remain addressable by
   ID while staying out of sidebar organization and unread/pending favicon
@@ -98,6 +102,7 @@ Forking:
   bb thread fork <source-thread-id> [options]
 
     --prompt <prompt>              Optional first prompt; omit for an idle fork
+    --prompt-file <path>           Read the first prompt from a file; `-` reads stdin
     --lifecycle-owner-thread <id>  Archive/delete with this owner
     --source-seq-end <seq>         Fork after the source turn containing this event sequence (tip by default)
     --environment <id-or-path>     Existing environment ID or unmanaged workspace path
@@ -138,6 +143,9 @@ Editing a sent message:
   replaces the selected turn and every later turn while retaining workspace
   changes. From an agent thread, the command carries `BB_THREAD_ID` so the
   replacement runs under agent permission policy.
+  An edit is refused if removing its history would erase ownership evidence
+  shared with another thread. Use bb thread clear <id> to start a new session
+  while keeping the history and its ownership evidence.
 
 Listing:
 
@@ -212,8 +220,8 @@ Inspecting:
   bb thread wait <id>                      Wait for a thread status or event (defaults to --status idle)
     --status <status>                      Wait for this status
     --event <type>                         Wait for this event type
-    --timeout <seconds>                    Timeout in seconds (default: 1200 / 20 min)
-    --poll-interval <ms>                   Polling interval in milliseconds
+    --timeout <duration>                   Seconds, or a duration with a unit: 90s, 20m, 4h (default: 1200s / 20 min)
+    --poll-interval <duration>             Milliseconds, or a duration with a unit
 
 Opening threads and files in the app:
 
@@ -243,6 +251,10 @@ Opening threads and files in the app:
 Messaging:
 
   bb thread tell <id> <message>            Send a follow-up message
+  bb thread tell <id> --message-file <path>
+                                           Read the message from a file; `-` reads stdin. Use this for
+                                           multi-line or Markdown messages: inside double quotes the
+                                           shell runs `backticks` and $(...) before bb sees them
     --mode <mode>                          Message mode: steer (default), queue, or auto
     --model <model>                        Model override for this turn
     --reasoning-level <level>              Reasoning level override
@@ -354,6 +366,11 @@ Queued messages:
   queued row in the workspace; `--wait-holder plugin:<plugin-id>` narrows it to
   the rows one plugin is holding.
 
+  Failed rows show their failure reason instead of their previous wait, followed
+  by a recovery command: `bb thread queue send <thread-id> <message-id>`.
+  Use it to retry immediately, including after automatic retries are exhausted.
+  Editing the message does not clear its failure or trigger a retry.
+
   `queue send` dispatches a row now, bypassing every plugin wait and its own
   schedule — the invariants (a running turn, an unfinished workspace, an
   unanswered interaction) still apply, and a message that hits one simply queues
@@ -399,7 +416,12 @@ Lifecycle:
   The command succeeds when no runtime is loaded. Archive a finished hidden
   worker first, then stop it to release memory promptly. A stop that only
   releases an idle runtime adds no interruption: it leaves the timeline and any
-  pending interaction of that thread untouched.
+  pending interaction of that thread untouched. An explicit stop wins over work
+  that is still running: when the machine still runs a turn for a thread the app
+  shows as idle or failed, or a turn starts while the stop is being delivered,
+  the stop interrupts that turn and waits for the attempt. If the interrupt
+  fails, the thread remains stopping; check `bb thread show <id> --json` before
+  treating the stop as confirmed.
 
   bb thread unarchive [id]                 Unarchive a thread
     --self                                 Unarchive current thread
