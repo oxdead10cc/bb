@@ -17,6 +17,7 @@ import { TimelineReasoningExpansionProvider } from "./TimelineReasoningExpansion
 import { TimelineWorkingIndicator } from "./TimelineWorkingIndicator.js";
 import type {
   ThreadTimelineForkMessageHandler,
+  ThreadTimelineForkTargetProject,
   ThreadTimelineEditMessageHandler,
   ThreadTimelineInlineMessageEditor,
   ThreadTimelineAddToChatHandler,
@@ -44,6 +45,7 @@ export interface ThreadTimelineSurfaceProps {
   loadingContent?: ReactNode;
   leadingContent?: ReactNode;
   onForkMessage?: ThreadTimelineForkMessageHandler;
+  forkTargetProjects?: readonly ThreadTimelineForkTargetProject[];
   onEditMessage?: ThreadTimelineEditMessageHandler;
   inlineMessageEditor?: ThreadTimelineInlineMessageEditor;
   onMessageAddToChat?: ThreadTimelineAddToChatHandler;
@@ -145,6 +147,7 @@ export function ThreadTimelineSurface({
   loadingContent,
   leadingContent,
   onForkMessage,
+  forkTargetProjects,
   onEditMessage,
   inlineMessageEditor,
   onMessageAddToChat,
@@ -222,6 +225,7 @@ export function ThreadTimelineSurface({
           <ThreadTimelineRows
             canSpawnChild={canSpawnChild}
             onForkMessage={onForkMessage}
+            forkTargetProjects={forkTargetProjects}
             onEditMessage={onEditMessage}
             inlineMessageEditor={inlineMessageEditor}
             onMessageAddToChat={onMessageAddToChat}

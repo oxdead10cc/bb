@@ -117,6 +117,70 @@ describe("useForkThreadFromMessage", () => {
     });
   });
 
+  it("forks into another project on the source host and opens it there", async () => {
+    mocks.spawn.mockResolvedValue(
+      makeThreadResponse({
+        id: "thr_fork",
+        projectId: "proj_personal",
+        originKind: "fork",
+        sourceThreadId: "thr_source",
+      }),
+    );
+    const navigateInPane = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useForkThreadFromMessage({
+          navigateInPane,
+          sourceHostId: "host_local",
+          sourceThread: makeThread(),
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await act(async () => {
+      await result.current({
+        sourceSeqEnd: 7,
+        targetProjectId: "proj_personal",
+      });
+    });
+
+    expect(mocks.spawn.mock.calls[0]?.[0]).toMatchObject({
+      environment: {
+        type: "provider",
+        environmentProviderId: "personal-workspace",
+        machine: { type: "existing", hostId: "host_local" },
+        inputs: null,
+      },
+      originKind: "fork",
+      projectId: "proj_personal",
+      sourceSeqEnd: 7,
+      sourceThreadId: "thr_source",
+    });
+    expect(navigateInPane).toHaveBeenCalledWith({
+      projectId: "proj_personal",
+      threadId: "thr_fork",
+    });
+  });
+
+  it("does not fork into another project before the source host is known", async () => {
+    const navigateInPane = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useForkThreadFromMessage({
+          navigateInPane,
+          sourceThread: makeThread(),
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await act(async () => {
+      await result.current({ sourceSeqEnd: 7, targetProjectId: "proj_other" });
+    });
+
+    expect(mocks.spawn).not.toHaveBeenCalled();
+    expect(navigateInPane).not.toHaveBeenCalled();
+  });
+
   it("stays on the source thread when the fork is rejected", async () => {
     mocks.spawn.mockRejectedValue(new Error("fork_source_session_unavailable"));
     const navigateInPane = vi.fn();

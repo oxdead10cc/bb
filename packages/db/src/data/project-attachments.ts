@@ -106,10 +106,9 @@ export function copyProjectAttachmentOwnership(
     .from(threads)
     .where(eq(threads.id, targetThreadId))
     .get();
-  if (!source || !target || source.projectId !== target.projectId)
-    throw new Error(
-      "Attachment ownership requires threads in the same project",
-    );
+  if (!source || !target)
+    throw new Error("Attachment ownership requires existing threads");
+  if (source.projectId !== target.projectId) return;
   db.run(sql`INSERT OR IGNORE INTO project_attachment_threads (attachment_id, thread_id)
     SELECT attachment_id, ${targetThreadId} FROM project_attachment_threads WHERE thread_id = ${sourceThreadId}`);
 }

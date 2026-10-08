@@ -37,6 +37,7 @@ import {
 } from "@bb/domain";
 import type {
   PullRequestMergeMethod,
+  SidebarBootstrapResponse,
   TerminalSession,
   TimelineRow,
 } from "@bb/server-contract";
@@ -104,6 +105,11 @@ import { useCreateThreadInEnvironment } from "@/hooks/useCreateThreadInEnvironme
 import { useHostDaemon } from "@/hooks/useHostDaemon";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { selectHosts, useHosts } from "@/hooks/queries/host-queries";
+import { useSidebarNavigationSelection } from "@/hooks/queries/sidebar-navigation-query";
+import {
+  listForkTargetProjects,
+  type ForkTargetProject,
+} from "@/lib/fork-target-projects";
 import { useSystemConfig } from "@/hooks/queries/system-queries";
 import { useConnectionAwareQueryState } from "@/hooks/queries/connection-aware-query-state";
 import { useThreadTerminals } from "@/hooks/queries/thread-terminal-queries";
@@ -285,6 +291,7 @@ const EMPTY_CHILD_THREAD_ITEMS: readonly ChildThreadPendingAttentionSource[] =
 const EMPTY_PROJECT_THREAD_SUBSET_FILTERS =
   {} satisfies ProjectThreadSubsetFilters;
 const EMPTY_TERMINAL_SESSIONS: readonly TerminalSession[] = [];
+const EMPTY_FORK_TARGET_PROJECTS: readonly ForkTargetProject[] = [];
 const DEFAULT_PULL_REQUEST_MERGE_METHOD: PullRequestMergeMethod = "merge";
 const PULL_REQUEST_MERGE_METHOD_STORAGE_KEY = "bb.pullRequest.mergeMethod";
 
@@ -874,10 +881,28 @@ function ThreadDetailViewInternal(
         : null,
     [thread, threadEnvironmentHost],
   );
+  const environmentHostId = environment?.hostId ?? null;
   const forkThreadFromMessage = useForkThreadFromMessage({
     navigateInPane,
+    sourceHostId: environmentHostId,
     sourceThread: thread ?? null,
   });
+  const threadProjectId = thread?.projectId;
+  const selectForkTargetProjects = useCallback(
+    (navigation: SidebarBootstrapResponse): ForkTargetProject[] =>
+      threadProjectId === undefined
+        ? []
+        : listForkTargetProjects({
+            hostId: environmentHostId,
+            personalProject: navigation.personalProject,
+            projects: navigation.projects,
+            sourceProjectId: threadProjectId,
+          }),
+    [environmentHostId, threadProjectId],
+  );
+  const forkTargetProjects =
+    useSidebarNavigationSelection(selectForkTargetProjects) ??
+    EMPTY_FORK_TARGET_PROJECTS;
   const handleForkMessage = useCallback<ThreadTimelineForkMessageHandler>(
     (target) => {
       void forkThreadFromMessage(target);
@@ -2752,6 +2777,7 @@ function ThreadDetailViewInternal(
               isThreadTimelinePending,
               timelineError: Boolean(timelineError),
               onForkMessage: isForkAvailable ? handleForkMessage : undefined,
+              forkTargetProjects,
               onEditMessage: canEditSentMessages
                 ? handleEditSentMessage
                 : undefined,

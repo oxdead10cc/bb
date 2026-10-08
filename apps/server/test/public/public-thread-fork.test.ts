@@ -448,6 +448,70 @@ describe("public thread fork route", () => {
     });
   });
 
+  it("forks into another project through the create route", async () => {
+    await withTestHarness(async (harness) => {
+      const workspacePath = "/tmp/cross-project-fork-workspace";
+      const { environment, sourceThread } = seedForkSource(harness);
+      ensurePersonalProject(harness.db);
+      const provider = installFakePersonalWorkspaceProvider(() => ({
+        action: "ready",
+        environment: {
+          type: "host",
+          hostId: environment.hostId,
+          path: workspacePath,
+        },
+      }));
+
+      const response = await harness.app.request("/api/v1/threads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          origin: "app",
+          originKind: "fork",
+          projectId: PERSONAL_PROJECT_ID,
+          providerId: sourceThread.providerId,
+          input: [],
+          environment: {
+            type: "host",
+            hostId: environment.hostId,
+            workspace: { type: "personal" },
+          },
+          sourceThreadId: sourceThread.id,
+          startedOnBehalfOf: null,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const fork = threadResponseSchema.parse(await readJson(response));
+      expect(fork).toMatchObject({
+        originKind: "fork",
+        projectId: PERSONAL_PROJECT_ID,
+        sourceThreadId: sourceThread.id,
+      });
+      expect((await provider.waitForProvision()).host?.id).toBe(
+        environment.hostId,
+      );
+      await reportNextEnvironmentAttachSuccess(harness, fork.id);
+      const start = await waitForQueuedCommand(
+        harness,
+        ({ command }) =>
+          command.type === "thread.start" && command.threadId === fork.id,
+      );
+      if (start.command.type !== "thread.start") {
+        throw new Error("Expected thread.start");
+      }
+      expect(
+        getEnvironment(
+          harness.db,
+          getThread(harness.db, fork.id)?.environmentId ?? "",
+        )?.path,
+      ).toBe(workspacePath);
+      expect(start.command.fork).toEqual({
+        sourceProviderThreadId: "provider-fork-source",
+      });
+    });
+  });
+
   it.each([false, true])(
     "creates an idle fork with explicit lifecycle ownership: %s",
     async (owned) => {

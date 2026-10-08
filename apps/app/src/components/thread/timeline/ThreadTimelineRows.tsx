@@ -55,6 +55,7 @@ import type {
   ThreadTimelineEditMessageHandler,
   ThreadTimelineInlineMessageEditor,
   ThreadTimelineForkMessageHandler,
+  ThreadTimelineForkTargetProject,
   ThreadTimelineLinkHandler,
   ThreadTimelineLocalFileLinkHandler,
   ThreadTimelineOpenPluginPanelHandler,
@@ -152,6 +153,7 @@ export interface ThreadTimelineRowsProps {
   initialExpanded?: ReadonlySet<string>;
   canSpawnChild?: boolean;
   onForkMessage?: ThreadTimelineForkMessageHandler;
+  forkTargetProjects?: readonly ThreadTimelineForkTargetProject[];
   onEditMessage?: ThreadTimelineEditMessageHandler;
   inlineMessageEditor?: ThreadTimelineInlineMessageEditor;
   onMessageAddToChat?: ThreadTimelineAddToChatHandler;
@@ -182,6 +184,7 @@ interface TimelineRendererStaticContextValue {
   canSpawnChild: boolean;
   getViewRows: GetTimelineViewRows;
   onForkMessage: ThreadTimelineForkMessageHandler | undefined;
+  forkTargetProjects: readonly ThreadTimelineForkTargetProject[];
   onEditMessage: ThreadTimelineEditMessageHandler | undefined;
   inlineMessageEditor: ThreadTimelineInlineMessageEditor | undefined;
   onMessageAddToChat: ThreadTimelineAddToChatHandler | undefined;
@@ -726,6 +729,8 @@ function findLastActionableUserMessageId(
 
 const EMPTY_CONSUMER_MESSAGE_ACTIONS: readonly ThreadTimelineConsumerMessageAction[] =
   [];
+const EMPTY_FORK_TARGET_PROJECTS: readonly ThreadTimelineForkTargetProject[] =
+  [];
 
 function buildRowPluginMessageActions(args: {
   slots: readonly PluginMessageActionSlot[];
@@ -853,6 +858,7 @@ const ConversationRowContent = memo(function ConversationRowContent({
   const composerHost = usePluginComposerHost();
   const {
     canSpawnChild,
+    forkTargetProjects,
     inlineMessageEditor,
     onEditMessage,
     onForkMessage,
@@ -998,6 +1004,11 @@ const ConversationRowContent = memo(function ConversationRowContent({
     onForkMessage === undefined
       ? undefined
       : () => onForkMessage({ sourceSeqEnd: row.sourceSeqEnd });
+  const onForkIntoProject =
+    onForkMessage === undefined || forkTargetProjects.length === 0
+      ? undefined
+      : (targetProjectId: string) =>
+          onForkMessage({ sourceSeqEnd: row.sourceSeqEnd, targetProjectId });
   const onSelectProse =
     reportProseSelection === undefined
       ? undefined
@@ -1016,6 +1027,8 @@ const ConversationRowContent = memo(function ConversationRowContent({
       onAddToChat={onMessageAddToChat}
       onCopyLink={onCopyLink}
       onFork={onFork}
+      forkTargetProjects={forkTargetProjects}
+      onForkIntoProject={onForkIntoProject}
       forkDisabled={!canSpawnChild}
       onSelectProse={onSelectProse}
       onOpenLink={onOpenLink}
@@ -2151,6 +2164,7 @@ function ThreadTimelineRowsForTimelineView(props: ThreadTimelineRowsProps) {
       canSpawnChild: props.canSpawnChild ?? false,
       getViewRows,
       onForkMessage: props.onForkMessage,
+      forkTargetProjects: props.forkTargetProjects ?? EMPTY_FORK_TARGET_PROJECTS,
       onEditMessage: props.onEditMessage,
       inlineMessageEditor: props.inlineMessageEditor,
       onMessageAddToChat: props.onMessageAddToChat,
@@ -2178,6 +2192,7 @@ function ThreadTimelineRowsForTimelineView(props: ThreadTimelineRowsProps) {
       props.canSpawnChild,
       getViewRows,
       props.onForkMessage,
+      props.forkTargetProjects,
       props.onEditMessage,
       props.inlineMessageEditor,
       props.onMessageAddToChat,

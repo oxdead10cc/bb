@@ -10,18 +10,22 @@ import {
   applyCreateThreadResult,
   beginCreateThreadTransaction,
 } from "@/hooks/cache-owners/thread-runtime-cache-owner";
+import { buildForkIntoProjectEnvironment } from "@/lib/fork-target-projects";
 
 interface UseForkThreadFromMessageArgs {
   navigateInPane: (thread: ThreadRoutePathArgs) => void;
+  sourceHostId?: string | null;
   sourceThread: Thread | null;
 }
 
 interface ForkThreadFromMessageTarget {
   sourceSeqEnd: number;
+  targetProjectId?: string;
 }
 
 export function useForkThreadFromMessage({
   navigateInPane,
+  sourceHostId = null,
   sourceThread,
 }: UseForkThreadFromMessageArgs): (
   target: ForkThreadFromMessageTarget,
@@ -47,12 +51,14 @@ export function useForkThreadFromMessage({
   const forkThreadRef = useRef(forkThread.mutateAsync);
   const forkInFlightRef = useRef(false);
   const sourceThreadRef = useRef(sourceThread);
+  const sourceHostIdRef = useRef(sourceHostId);
   const navigateInPaneRef = useRef(navigateInPane);
   useLayoutEffect(() => {
     forkThreadRef.current = forkThread.mutateAsync;
     sourceThreadRef.current = sourceThread;
+    sourceHostIdRef.current = sourceHostId;
     navigateInPaneRef.current = navigateInPane;
-  }, [forkThread.mutateAsync, navigateInPane, sourceThread]);
+  }, [forkThread.mutateAsync, navigateInPane, sourceHostId, sourceThread]);
 
   return useCallback(
     async (target: ForkThreadFromMessageTarget) => {
@@ -82,15 +88,29 @@ export function useForkThreadFromMessage({
         if (executionOptions === null || source.environmentId === null) {
           return;
         }
+        const targetProjectId = target.targetProjectId ?? source.projectId;
+        const sourceHostId = sourceHostIdRef.current;
+        const environment: AppCreateThreadRequest["environment"] | null =
+          targetProjectId === source.projectId
+            ? { type: "reuse", environmentId: source.environmentId }
+            : sourceHostId === null
+              ? null
+              : buildForkIntoProjectEnvironment({
+                  hostId: sourceHostId,
+                  projectId: targetProjectId,
+                });
+        if (environment === null) {
+          return;
+        }
 
         const fork = await forkThreadRef.current({
-          environment: { type: "reuse", environmentId: source.environmentId },
+          environment,
           input: [],
           model: executionOptions.model,
           originKind: "fork",
           permissionMode: executionOptions.permissionMode,
           pinned: source.pinnedAt !== null,
-          projectId: source.projectId,
+          projectId: targetProjectId,
           providerId: source.providerId,
           reasoningLevel: executionOptions.reasoningLevel,
           sectionId: source.sectionId,

@@ -20,6 +20,12 @@ export type ThreadTimelineOpenPluginPanelHandler =
 
 interface ThreadTimelineForkMessageTarget {
   sourceSeqEnd: number;
+  targetProjectId?: string;
+}
+
+export interface ThreadTimelineForkTargetProject {
+  id: string;
+  name: string;
 }
 
 export type ThreadTimelineForkMessageHandler = (

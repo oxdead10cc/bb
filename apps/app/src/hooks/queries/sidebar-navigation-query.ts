@@ -65,6 +65,17 @@ export function useProjectDisplayName(
   return data.projects.find((project) => project.id === projectId)?.name;
 }
 
+export function useSidebarNavigationSelection<T>(
+  select: (navigation: SidebarBootstrapResponse) => T,
+): T | undefined {
+  return useQuery<SidebarBootstrapResponse, Error, T>({
+    queryKey: sidebarNavigationQueryKey(),
+    queryFn: ({ signal }) => fetchSidebarNavigation(signal),
+    ...REALTIME_OWNED_STATIC_CACHE_QUERY_POLICY,
+    select,
+  }).data;
+}
+
 interface SidebarNavigationThreadSelection<T> {
   data: T | undefined;
   isBootstrapPending: boolean;

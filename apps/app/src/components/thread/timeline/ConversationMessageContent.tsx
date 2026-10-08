@@ -24,6 +24,7 @@ import {
 import type { TimelineTitleActionResolver } from "./TimelineTitleView.js";
 import type {
   ThreadTimelineAddToChatHandler,
+  ThreadTimelineForkTargetProject,
   ThreadTimelineLinkHandler,
   ThreadTimelineLocalFileLinkHandler,
   UserAttachmentImageSrcResolver,
@@ -133,6 +134,8 @@ interface ConversationMessageContentAssistantProps
   onOpenLink?: ThreadTimelineLinkHandler;
   onAddToChat?: ThreadTimelineAddToChatHandler;
   onFork?: () => void;
+  forkTargetProjects?: readonly ThreadTimelineForkTargetProject[];
+  onForkIntoProject?: (projectId: string) => void;
   forkDisabled?: boolean;
   onSelectProse?: (selection: MessageProseSelection | null) => void;
   showActions: boolean;
@@ -180,6 +183,8 @@ interface AssistantConversationMessageProps extends AssistantMessageRowIdentity 
   onAddToChat?: ThreadTimelineAddToChatHandler;
   onCopyLink?: () => void;
   onFork?: () => void;
+  forkTargetProjects?: readonly ThreadTimelineForkTargetProject[];
+  onForkIntoProject?: (projectId: string) => void;
   forkDisabled?: boolean;
   onSelectProse?: (selection: MessageProseSelection | null) => void;
   onOpenLink?: ThreadTimelineLinkHandler;
@@ -489,6 +494,8 @@ function AssistantConversationMessage({
   onAddToChat,
   onCopyLink,
   onFork,
+  forkTargetProjects,
+  onForkIntoProject,
   forkDisabled,
   onSelectProse,
   onOpenLink,
@@ -632,6 +639,8 @@ function AssistantConversationMessage({
           onAddToChat={onAddToChat}
           onCopyLink={onCopyLink}
           onFork={onFork}
+          forkTargetProjects={forkTargetProjects}
+          onForkIntoProject={onForkIntoProject}
           disabled={forkDisabled}
           pluginActions={pluginActions}
         />
@@ -706,6 +715,8 @@ export function ConversationMessageContent(
       onAddToChat={props.onAddToChat}
       onCopyLink={props.onCopyLink}
       onFork={props.onFork}
+      forkTargetProjects={props.forkTargetProjects}
+      onForkIntoProject={props.onForkIntoProject}
       forkDisabled={props.forkDisabled}
       onSelectProse={props.onSelectProse}
       onOpenLink={props.onOpenLink}

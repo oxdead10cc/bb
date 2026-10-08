@@ -313,21 +313,11 @@ function assertProjectWorkspaceCompatibility(
 
 function requireLiveSourceThread(
   deps: Pick<ThreadCreateDeps, "db">,
-  args: {
-    projectId: string;
-    sourceThreadId: string;
-  },
+  sourceThreadId: string,
 ): Thread {
-  const sourceThread = getThread(deps.db, args.sourceThreadId);
+  const sourceThread = getThread(deps.db, sourceThreadId);
   if (sourceThread === null) {
     throw new ApiError(400, "invalid_request", "sourceThreadId not found");
-  }
-  if (sourceThread.projectId !== args.projectId) {
-    throw new ApiError(
-      400,
-      "invalid_request",
-      "sourceThreadId must belong to the same project",
-    );
   }
   if (sourceThread.archivedAt !== null) {
     throw new ApiError(
@@ -378,10 +368,7 @@ async function createPendingThreadAndAttemptFirstDispatch(
   if (environment !== null)
     assertEnvironmentPathAvailable(deps, { ...environment, threadId: null });
   if (args.request.sourceThreadId) {
-    requireLiveSourceThread(deps, {
-      projectId: args.request.projectId,
-      sourceThreadId: args.request.sourceThreadId,
-    });
+    requireLiveSourceThread(deps, args.request.sourceThreadId);
   }
   const startContext: PendingThreadStartContext = {
     environmentIntent: args.environmentIntent,
@@ -571,11 +558,10 @@ export async function createThreadFromRequest(
     );
   }
   const sourceThread = sourceThreadId
-    ? requireLiveSourceThread(deps, {
-        projectId: requestInput.projectId,
-        sourceThreadId,
-      })
+    ? requireLiveSourceThread(deps, sourceThreadId)
     : null;
+  const isCrossProjectFork =
+    sourceThread !== null && sourceThread.projectId !== requestInput.projectId;
   if (originKind !== null && sourceThread !== null) {
     assertValidParentThread(deps, {
       parentThreadId: sourceThread.id,
@@ -644,7 +630,7 @@ export async function createThreadFromRequest(
   } = requestInput;
   const requestedEnvironment = await resolveCreateThreadEnvironment(deps, {
     parentThread:
-      forkSourceEnvironmentId !== undefined
+      forkSourceEnvironmentId !== undefined || isCrossProjectFork
         ? null
         : (sourceThread ?? parentThread),
     projectId: requestInput.projectId,

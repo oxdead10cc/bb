@@ -246,6 +246,59 @@ describe("MessageActionBar", () => {
     ]);
   });
 
+  it("forks into a project picked from the fork submenu", async () => {
+    const onForkIntoProject = vi.fn();
+    render(
+      <MessageActionBar
+        timestamp={TIMESTAMP}
+        messageText="An answer."
+        alignment="start"
+        mobileActionDisplay="inline"
+        onFork={vi.fn()}
+        forkTargetProjects={[
+          { id: "proj_personal", name: "Personal" },
+          { id: "proj_cursok", name: "cursok" },
+        ]}
+        onForkIntoProject={onForkIntoProject}
+      />,
+    );
+
+    fireEvent.click(
+      within(openDesktopMenu()).getByRole("menuitem", {
+        name: "Fork into project",
+      }),
+    );
+    const submenu = (await screen.findAllByRole("menu")).at(-1)!;
+    expect(
+      within(submenu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Personal", "cursok"]);
+    fireEvent.click(within(submenu).getByRole("menuitem", { name: "cursok" }));
+
+    expect(onForkIntoProject).toHaveBeenCalledWith("proj_cursok");
+  });
+
+  it("hides the fork submenu when no other project can take the fork", () => {
+    render(
+      <MessageActionBar
+        timestamp={TIMESTAMP}
+        messageText="An answer."
+        alignment="start"
+        mobileActionDisplay="inline"
+        onFork={vi.fn()}
+        forkTargetProjects={[]}
+        onForkIntoProject={vi.fn()}
+      />,
+    );
+
+    expect(
+      within(openDesktopMenu()).queryByRole("menuitem", {
+        name: "Fork into project",
+      }),
+    ).toBeNull();
+  });
+
   it("shows a timestamp-only footer in the menu", () => {
     render(
       <MessageActionBar

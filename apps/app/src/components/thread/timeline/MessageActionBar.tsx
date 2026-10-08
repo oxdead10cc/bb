@@ -8,6 +8,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@bb/shared-ui/dropdown-menu";
 import {
@@ -20,7 +23,10 @@ import { HOVER_REVEAL_NO_HOVER_VISIBLE_CLASS } from "@bb/shared-ui/hover-reveal"
 import { cn } from "@bb/shared-ui/lib/utils";
 import type { PromptDraftAttachment } from "@bb/client-core";
 import { PluginItemIcon, pluginIconName } from "@/components/plugin/PluginIcon";
-import type { ThreadTimelinePluginMessageAction } from "./types.js";
+import type {
+  ThreadTimelineForkTargetProject,
+  ThreadTimelinePluginMessageAction,
+} from "./types.js";
 
 function PluginActionIcon({
   pluginId,
@@ -56,6 +62,8 @@ interface MessageActionBarProps {
   onCopyLink?: () => void;
   onEdit?: () => void;
   onFork?: () => void;
+  forkTargetProjects?: readonly ThreadTimelineForkTargetProject[];
+  onForkIntoProject?: (projectId: string) => void;
   disabled?: boolean;
   pluginActions?: readonly ThreadTimelinePluginMessageAction[];
 }
@@ -263,6 +271,37 @@ function MessageActionMenuItems({
   ));
 }
 
+function ForkIntoProjectMenu({
+  disabled,
+  onSelect,
+  projects,
+}: {
+  disabled: boolean | undefined;
+  onSelect: (projectId: string) => void;
+  projects: readonly ThreadTimelineForkTargetProject[];
+}) {
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger disabled={disabled}>
+        <Icon name="Fork" aria-hidden="true" />
+        Fork into project
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="max-h-[min(24rem,calc(100vh-2rem))] min-w-44 overflow-y-auto">
+        {projects.map((project) => (
+          <DropdownMenuItem
+            key={project.id}
+            onSelect={() => onSelect(project.id)}
+            textValue={project.name}
+          >
+            <Icon name="Folder" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate">{project.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+}
+
 function formatMessageDay(date: Date, now: Date): string {
   if (date.toDateString() === now.toDateString()) {
     return "Today";
@@ -318,6 +357,8 @@ export function MessageActionBar({
   onCopyLink,
   onEdit,
   onFork,
+  forkTargetProjects = [],
+  onForkIntoProject,
   disabled,
   pluginActions = [],
 }: MessageActionBarProps) {
@@ -491,6 +532,15 @@ export function MessageActionBar({
               className={MENU_CONTENT_WIDTH_CLASS}
             >
               <MessageActionMenuItems actions={menuActions} />
+              {onForkIntoProject &&
+              forkTargetProjects.length > 0 &&
+              !isCompactViewport ? (
+                <ForkIntoProjectMenu
+                  disabled={disabled}
+                  onSelect={onForkIntoProject}
+                  projects={forkTargetProjects}
+                />
+              ) : null}
               <MessageTimestampFooter timestamp={timestamp} />
             </DropdownMenuContent>
           </DropdownMenu>
