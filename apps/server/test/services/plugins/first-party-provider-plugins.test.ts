@@ -92,7 +92,7 @@ const FIRST_PARTY_PROVIDER_DECLARATIONS = [
     supportsThreadArchive: false,
     supportsThreadRename: false,
     fork: "none",
-    supportsManualCompaction: false,
+    supportsManualCompaction: true,
     supportsUsage: false,
     visibility: "installed",
     hasLogo: true,
@@ -283,7 +283,7 @@ describe("first-party provider plugins", () => {
           capabilities: {
             supportsThreadArchive: false,
             supportsThreadRename: false,
-            supportsServiceTier: false,
+            supportsServiceTier: true,
             supportsNativeUserQuestion: true,
             permissionModes: ["accept-edits", "auto", "full"],
             supportsFork: true,
@@ -340,6 +340,10 @@ describe("first-party provider plugins", () => {
           "ultracode",
         ]);
         expect(claude?.fallbackModels).toEqual([]);
+        expect(claude?.info.serviceTiers?.map((tier) => tier.id)).toEqual([
+          "default",
+          "fast",
+        ]);
         expect(claude?.envPassthrough).toEqual([
           "BB_CLAUDE_CODE_EXECUTABLE",
           "CLAUDE_CODE_OAUTH_TOKEN",
@@ -348,7 +352,7 @@ describe("first-party provider plugins", () => {
           harness.deps.providerRegistry
             .get("codex")
             ?.info.serviceTiers?.map((tier) => tier.id),
-        ).toEqual(["default", "fast"]);
+        ).toEqual(["default", "fast", "ultrafast"]);
       },
     );
   }, 60_000);

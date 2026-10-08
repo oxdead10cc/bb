@@ -168,7 +168,9 @@ export function TopLevelSidebarSection({
   const stopCollapseControlKeyDown = useCallback<
     KeyboardEventHandler<HTMLButtonElement>
   >((event) => {
-    event.stopPropagation();
+    if (event.key === "Enter" || event.key === " ") {
+      event.stopPropagation();
+    }
   }, []);
 
   return (
@@ -284,7 +286,7 @@ export function TopLevelSidebarSection({
                   SIDEBAR_HOVER_ACTIONS_GAP_CLASS,
                   !actionsAlwaysVisible && SIDEBAR_HOVER_ACTIONS_CLASS,
                   collapseControl?.isCollapsed &&
-                    "max-md:pointer-coarse:hidden",
+                    "[@media(hover:none)]:hidden",
                 )}
               >
                 {actions}

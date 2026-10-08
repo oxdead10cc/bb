@@ -122,6 +122,9 @@ export const UrlLink = runtimeComponent("UrlLink");
 export const experimental_NewThreadComposer = runtimeComponent(
   "experimental_NewThreadComposer",
 );
+export const experimental_VoiceInputTextarea = runtimeComponent(
+  "experimental_VoiceInputTextarea",
+);
 export const experimental_ProviderModelPicker = runtimeComponent(
   "experimental_ProviderModelPicker",
 );
@@ -152,6 +155,9 @@ export const useBbContext = runtimeFunction("useBbContext");
 export const experimental_usePluginId = runtimeFunction(
   "experimental_usePluginId",
 );
+export const experimental_useQuestionFormHost = runtimeFunction(
+  "experimental_useQuestionFormHost",
+);
 export const useBbNavigate = runtimeFunction("useBbNavigate");
 export const experimental_useAppPanel = runtimeFunction(
   "experimental_useAppPanel",
@@ -160,6 +166,8 @@ export const experimental_useFixedTabTarget = runtimeFunction(
   "experimental_useFixedTabTarget",
 );
 export const useComposer = runtimeFunction("useComposer");
+export const useComposers = runtimeFunction("useComposers");
+/** @internal Superseded by `useComposer()`; kept for plugins built against older SDKs. */
 export const useComposerView = runtimeFunction("useComposerView");
 // Sidebar surfaces for plugins that replace the thread list (experimental —
 // see docs/api_to_audit.md).
@@ -212,4 +220,9 @@ export const experimental_useProviders = runtimeFunction(
 // (experimental — see docs/api_to_audit.md).
 export const experimental_useCodeTheme = runtimeFunction(
   "experimental_useCodeTheme",
+);
+// bb's clipboard writer, the one bb's own copy actions use (experimental —
+// see docs/api_to_audit.md).
+export const experimental_copyToClipboard = runtimeFunction(
+  "experimental_copyToClipboard",
 );

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { HOVER_REVEAL_NO_HOVER_VISIBLE_CLASS } from "@bb/shared-ui/hover-reveal";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
   observedBorderBoxBlockSize,
@@ -109,7 +110,10 @@ export function CollapsibleHeader({
             ? "rotate-90"
             : forceChevronVisible
               ? "opacity-100"
-              : "opacity-0 group-hover/toggle:opacity-100 group-focus-visible/toggle:opacity-100 max-md:pointer-coarse:opacity-100",
+              : cn(
+                  "opacity-0 group-hover/toggle:opacity-100 group-focus-visible/toggle:opacity-100",
+                  HOVER_REVEAL_NO_HOVER_VISIBLE_CLASS,
+                ),
         )}
       />
     </button>
@@ -147,14 +151,20 @@ function AnimatedExpandablePanelContent({
   const regionRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const toggleAnimationDeadlineRef = useRef(0);
-  const isFirstToggleEffectRef = useRef(true);
+  const previousBodyExpandedRef = useRef(isBodyExpanded);
   useBrowserLayoutEffect(() => {
-    if (isFirstToggleEffectRef.current) {
-      isFirstToggleEffectRef.current = false;
-      return;
-    }
+    if (previousBodyExpandedRef.current === isBodyExpanded) return;
+    previousBodyExpandedRef.current = isBodyExpanded;
+    if (typeof ResizeObserver === "undefined") return;
     toggleAnimationDeadlineRef.current =
       performance.now() + EXPANDABLE_PANEL_TRANSITION_MS;
+    const region = regionRef.current;
+    const target = contentRef.current;
+    if (region && target) {
+      const height = target.offsetHeight;
+      region.style.transitionDuration = "";
+      region.style.height = `${height}px`;
+    }
   }, [isBodyExpanded]);
 
   useBrowserLayoutEffect(() => {
@@ -183,8 +193,7 @@ function AnimatedExpandablePanelContent({
       region.style.height = `${heightPx}px`;
     };
 
-    writeHeightSync(readHeightSync(undefined));
-
+    region.style.transitionDuration = "0s";
     if (typeof ResizeObserver === "undefined") {
       return;
     }
@@ -193,7 +202,7 @@ function AnimatedExpandablePanelContent({
       read: readHeightSync,
       write: writeHeightSync,
     });
-  }, [collapsedContent, isBodyExpanded, renderedBody]);
+  }, []);
 
   return (
     <div

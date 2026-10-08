@@ -69,6 +69,8 @@ function recordTurnFailedAnnouncements(): string[] {
   setPluginThreadEventEmitter({
     emitThreadEvents: () => {},
     emitTerminalInput: () => {},
+    emitHostDeleted: () => {},
+    emitEnvironmentRemoved: () => {},
     emitThreadCreated: () => {},
     emitThreadActive: () => {},
     emitThreadIdle: () => {},

@@ -1,5 +1,10 @@
 import { memo } from "react";
-import type { PermissionMode, ReasoningLevel, ServiceTier } from "@bb/domain";
+import type {
+  PermissionMode,
+  ProviderOptionDescriptor,
+  ReasoningLevel,
+  ServiceTier,
+} from "@bb/domain";
 import type {
   SystemExecutionOptionsModelLoadError,
   SystemProvidersQuery,
@@ -13,6 +18,8 @@ import {
 import { type PickerOption } from "@/components/pickers/OptionPicker";
 import type { ModelPickerOption } from "@/components/pickers/model-picker-option";
 import type { ProviderPickerOption } from "@/components/pickers/model-brand-prefix";
+
+const EMPTY_SERVICE_TIER_OPTIONS: readonly ProviderOptionDescriptor[] = [];
 
 interface ExecutionProviderConfig {
   options?: readonly ProviderPickerOption[];
@@ -37,7 +44,7 @@ interface ExecutionServiceTierConfig {
   onChange: (value: ServiceTier | undefined) => void;
   supported: boolean;
   supportByProvider?: Record<string, boolean>;
-  fastLabel?: string;
+  options: readonly ProviderOptionDescriptor[];
 }
 
 interface ExecutionReasoningConfig {
@@ -112,13 +119,14 @@ export const ExecutionControls = memo(function ExecutionControls({
           reasoningOptions={reasoning.options}
           onReasoningChange={reasoning.onChange}
           onApplySelection={onApplySelection}
-          fastModeEnabled={serviceTier?.value === "fast"}
-          onFastModeChange={(enabled) =>
-            handleServiceTierChange(enabled ? "fast" : "default")
+          serviceTierValue={serviceTier?.value}
+          serviceTierOptions={
+            serviceTier?.supported
+              ? serviceTier.options
+              : EMPTY_SERVICE_TIER_OPTIONS
           }
-          showFastModeToggle={serviceTier?.supported ?? false}
+          onServiceTierChange={handleServiceTierChange}
           serviceTierSupportByProvider={serviceTier?.supportByProvider}
-          fastModeLabel={serviceTier?.fastLabel}
           muted
           disabled={disabled}
           handoff={handoff}

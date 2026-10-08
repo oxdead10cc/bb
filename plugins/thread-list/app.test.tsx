@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PluginThreadListProps } from "@get-bb/plugin-sdk/app";
 import {
@@ -181,6 +187,61 @@ describe("thread-list plugin", () => {
     ).not.toBeNull();
   });
 
+  it("groups pinned worktree roots when environment grouping is enabled", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const environment = {
+      id: "env_review",
+      name: "Reviewer worktree group",
+      branchName: "review",
+      path: null,
+      providerId: null,
+      isWorktree: true,
+      workspaceDisplayKind: "managed-worktree" as const,
+    };
+    const pinnedWorktreeThreads = [
+      makeSidebarThread({
+        id: "thr_worktree_a",
+        projectId: "proj_app",
+        title: "Worktree root A",
+        pinnedAt: 20,
+        pinSortKey: "a",
+        environment,
+      }),
+      makeSidebarThread({
+        id: "thr_worktree_b",
+        projectId: "proj_app",
+        title: "Worktree root B",
+        pinnedAt: 19,
+        pinSortKey: "b",
+        environment,
+      }),
+    ];
+    renderList(
+      {
+        organizationMode: "chronological",
+        environmentGrouping: true,
+      },
+      {
+        sidebarThreads: {
+          projects: PROJECTS,
+          sections: SECTIONS,
+          threads: [...THREADS, ...pinnedWorktreeThreads],
+        },
+      },
+    );
+
+    const environmentGroup = (
+      await screen.findByText("Reviewer worktree group")
+    ).closest("[data-sidebar-sticky-group]");
+    expect(environmentGroup).not.toBeNull();
+    expect(
+      within(environmentGroup as HTMLElement).getByText("Worktree root A"),
+    ).not.toBeNull();
+    expect(
+      within(environmentGroup as HTMLElement).getByText("Worktree root B"),
+    ).not.toBeNull();
+  });
+
   it("groups threads by machine in machine mode", async () => {
     setPreferencesMirrorStorageForTest(null);
     renderList({ organizationMode: "machine" });
@@ -200,6 +261,51 @@ describe("thread-list plugin", () => {
     expect(
       within(noMachine as HTMLElement).getByText("Personal thread"),
     ).not.toBeNull();
+  });
+
+  it("opens the composer on the machine named by its section", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    const { inspection } = renderList({ organizationMode: "machine" });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "New thread in Laptop" }),
+    );
+
+    expect(inspection.sidebarActionCalls).toContainEqual({
+      method: "openNewThread",
+      options: {
+        projectId: PERSONAL_PROJECT_ID,
+        hostId: "host_laptop",
+        experimental_placement: { sectionId: null, pinned: false },
+        focusPrompt: true,
+      },
+    });
+  });
+
+  it("shows a machine section before it has any threads", async () => {
+    setPreferencesMirrorStorageForTest(null);
+    renderList(
+      { organizationMode: "machine" },
+      {
+        sidebarThreads: {
+          projects: PROJECTS,
+          sections: SECTIONS,
+          threads: THREADS,
+          experimental_hosts: [
+            { id: "host_laptop", name: "Laptop" },
+            { id: "host_empty", name: "Studio Mac" },
+          ],
+        },
+      },
+    );
+
+    await screen.findByText("Pinned thread");
+    expect(sectionHeaders()).toEqual([
+      "Pinned",
+      "Laptop",
+      "Studio Mac",
+      "No machine",
+    ]);
   });
 
   it("groups threads by project in project mode", async () => {

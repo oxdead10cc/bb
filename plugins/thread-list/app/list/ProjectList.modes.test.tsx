@@ -11,6 +11,7 @@ import {
   within,
 } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarRenameProvider } from "../rows/SidebarInlineRename.js";
 import {
   createStore,
   Provider as JotaiProvider,
@@ -55,12 +56,10 @@ vi.mock("../model/machine-thread-groups.js", async (importOriginal) => {
 });
 
 installTestPluginRuntime();
-const { ActiveSidebarModeSections, MachineModeSections } = await import(
-  "./ProjectList.js"
-);
-const { useSidebarModeSectionOrder } = await import(
-  "./useSidebarModeSectionOrder.js"
-);
+const { ActiveSidebarModeSections, MachineModeSections } =
+  await import("./ProjectList.js");
+const { useSidebarModeSectionOrder } =
+  await import("./useSidebarModeSectionOrder.js");
 
 const mockBuildMachineThreadGroups = vi.mocked(buildMachineThreadGroups);
 
@@ -169,12 +168,12 @@ function MachineModeProbe({
     <TooltipProvider>
       <MachineModeSections
         threads={threads}
-        draftThreadIds={new Set()}
         effectivePinnedThreadIds={new Set()}
         status="ready"
         showPinnedSection={false}
         pinnedSection={{ label: "Pinned", content: null }}
         pinnedReorderPending={false}
+        pinnedRootItems={[]}
         pinnedRootNodes={[]}
         pinnedThreads={[]}
         onReorderPinnedThread={vi.fn()}
@@ -200,7 +199,11 @@ interface HarnessProps {
 }
 
 function Harness({ store, children }: HarnessProps) {
-  return <JotaiProvider store={store}>{children}</JotaiProvider>;
+  return (
+    <JotaiProvider store={store}>
+      <SidebarRenameProvider>{children}</SidebarRenameProvider>
+    </JotaiProvider>
+  );
 }
 
 function renderMachineMode(

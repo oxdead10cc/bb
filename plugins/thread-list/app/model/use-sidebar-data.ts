@@ -66,16 +66,18 @@ function sameProjectShape(
 }
 
 const EMPTY_THREADS: SidebarThread[] = [];
+const EMPTY_HOSTS: readonly SidebarHost[] = [];
 
 export function buildSidebarData(
   status: PluginSidebarThreadsState["status"],
   threads: readonly PluginSidebarThread[],
   projects: readonly PluginSidebarProject[],
   sections: readonly PluginSidebarSection[],
+  hosts: readonly SidebarHost[] = [],
   previous: SidebarData | null = null,
 ): SidebarData {
   const threadsByProjectId = new Map<string, SidebarThread[]>();
-  const hostsById = new Map<string, SidebarHost>();
+  const hostsById = new Map(hosts.map((host) => [host.id, host]));
   for (const thread of threads) {
     const bucket = threadsByProjectId.get(thread.projectId);
     if (bucket === undefined) {
@@ -134,6 +136,7 @@ interface SidebarDataCacheEntry {
   threads: readonly PluginSidebarThread[];
   projects: readonly PluginSidebarProject[];
   sections: readonly PluginSidebarSection[];
+  hosts: readonly SidebarHost[];
   data: SidebarData;
 }
 
@@ -141,12 +144,14 @@ let sidebarDataCache: SidebarDataCacheEntry | null = null;
 
 export function getSidebarData(state: PluginSidebarThreadsState): SidebarData {
   const cached = sidebarDataCache;
+  const hosts = state.experimental_hosts ?? EMPTY_HOSTS;
   if (
     cached !== null &&
     cached.status === state.status &&
     cached.threads === state.threads &&
     cached.projects === state.projects &&
-    cached.sections === state.sections
+    cached.sections === state.sections &&
+    cached.hosts === hosts
   ) {
     return cached.data;
   }
@@ -155,6 +160,7 @@ export function getSidebarData(state: PluginSidebarThreadsState): SidebarData {
     state.threads,
     state.projects,
     state.sections,
+    hosts,
     cached?.data ?? null,
   );
   sidebarDataCache = {
@@ -162,6 +168,7 @@ export function getSidebarData(state: PluginSidebarThreadsState): SidebarData {
     threads: state.threads,
     projects: state.projects,
     sections: state.sections,
+    hosts,
     data,
   };
   return data;
@@ -186,10 +193,7 @@ export function useSidebarData() {
     experimental_lifecycles: lifecycles,
   });
   return useMemo(
-    () => ({
-      ...getSidebarData(state),
-      archived: state.experimental_archived,
-    }),
+    () => ({ ...getSidebarData(state), archived: state.experimental_archived }),
     [state],
   );
 }

@@ -17,6 +17,7 @@ import {
   type PluginSourceIntent,
 } from "@bb/db";
 import {
+  BUILTIN_PLUGIN_ID_PREFIX,
   BUNDLED_PLUGINS,
   builtinPluginSource,
   type BundledPluginRegistration,
@@ -39,11 +40,15 @@ import {
 } from "./install-sources.js";
 import { gitRefNameForRow, gitSelectorForRow } from "./git-source-intent.js";
 import { readPluginManifest, type PluginManifest } from "./manifest.js";
-import { forgetMutableRoot } from "./plugin-runtime.js";
+import {
+  forgetMutableRoot,
+  type SafeModeActivationRefusalArgs,
+} from "./plugin-runtime.js";
 import type {
   InstallRegistrationIdentity,
   RegisterInstalledArgs,
 } from "./managed-plugin-artifacts.js";
+import { commitInstall } from "./install-cancellation.js";
 import type { PluginServiceDeps } from "./plugin-service-internal.js";
 import {
   gitResolvedVersion,
@@ -94,11 +99,15 @@ interface PluginRegistrationContext {
   notifyPluginsChanged: () => void;
   list: () => InstalledPlugin[];
   runInstallHandlers: (id: string) => Promise<void>;
+  safeModeActivationRefusal: (
+    args: SafeModeActivationRefusalArgs,
+  ) => string | null;
 }
 
 export function createPluginRegistration(context: PluginRegistrationContext) {
   const {
     deps,
+    safeModeActivationRefusal,
     bundledPlugins,
     withLifecycleLock,
     disposeOne,
@@ -120,7 +129,12 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
 
   function refuseBuiltinShadow(pluginId: string): void {
     const bundledName = bundledPluginNamesById.get(pluginId);
-    if (bundledName === undefined) return;
+    if (bundledName === undefined) {
+      if (!pluginId.startsWith(BUILTIN_PLUGIN_ID_PREFIX)) return;
+      throw new Error(
+        `install refused: plugin ids starting with "${BUILTIN_PLUGIN_ID_PREFIX}" are reserved for plugins bundled with bb; rename the package so its id "${pluginId}" does not start with "${BUILTIN_PLUGIN_ID_PREFIX}"`,
+      );
+    }
     throw new Error(
       `install refused: plugin id "${pluginId}" is reserved by the bundled plugin "${bundledName}"; install "builtin:${bundledName}" instead`,
     );
@@ -213,7 +227,8 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
       current.activeArtifactId === expected.activeArtifactId &&
       current.rootDir === expected.rootDir &&
       current.version === expected.version &&
-      current.enabled === expected.enabled
+      current.enabled === expected.enabled &&
+      current.enabledFollowsDefault === expected.enabledFollowsDefault
     );
   }
 
@@ -312,6 +327,14 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
   ): Promise<InstalledPlugin> {
     const initialManifest =
       args.preparedManifest ?? (await readPluginManifest(args.rootDir));
+    const safeModeRefusal = safeModeActivationRefusal({
+      pluginId: initialManifest.id,
+      provenance: args.provenance.kind,
+      builtinName:
+        args.sourceIntent.kind === "builtin" ? args.sourceIntent.name : null,
+      action: "install",
+    });
+    if (safeModeRefusal !== null) throw new Error(safeModeRefusal);
     assertInstallRegistrationAvailable(
       getInstalledPlugin(deps.db, initialManifest.id),
       args,
@@ -337,6 +360,7 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
       ? initialManifest
       : await validateInstallDir(args);
     let isFreshInstall = false;
+    commitInstall();
     await withLifecycleLock(manifest.id, async () => {
       const existing = getInstalledPlugin(deps.db, manifest.id);
       isFreshInstall = existing === undefined;
@@ -356,6 +380,7 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
           rootDir: args.rootDir,
           version: manifest.version,
           enabled: movedFrom?.enabled ?? true,
+          enabledFollowsDefault: false,
         });
         const row = getInstalledPlugin(deps.db, manifest.id);
         if (row) {
@@ -591,6 +616,7 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
       rootDir: row.rootDir,
       version: row.version,
       enabled: row.enabled,
+      enabledFollowsDefault: row.enabledFollowsDefault,
     });
   }
 
@@ -664,6 +690,11 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
       if (!bundled.autoInstall && existing === undefined) {
         continue;
       }
+      const enabledFollowsDefault =
+        existing === undefined || existing.enabledFollowsDefault;
+      const enabled = enabledFollowsDefault
+        ? bundled.defaultEnabled
+        : existing.enabled;
       const sameBundledSource =
         existing?.sourceKind === "builtin" &&
         existing.sourceBuiltinName === bundled.name;
@@ -687,7 +718,8 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
           name: bundled.name,
         }) ||
         existing.version !== manifest.version ||
-        existing.rootDir !== bundled.rootDir
+        existing.rootDir !== bundled.rootDir ||
+        existing.enabled !== enabled
       ) {
         upsertInstalledPlugin(deps.db, {
           id: manifest.id,
@@ -699,7 +731,8 @@ export function createPluginRegistration(context: PluginRegistrationContext) {
           activeArtifactId: null,
           rootDir: bundled.rootDir,
           version: manifest.version,
-          enabled: existing?.enabled ?? bundled.defaultEnabled,
+          enabled,
+          enabledFollowsDefault,
         });
       }
     }

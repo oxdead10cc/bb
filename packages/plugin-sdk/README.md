@@ -13,13 +13,18 @@ the built-in `bb-plugin-authoring` skill synchronized with those declarations.
 
 Composer UI extensions register through `app.composer.customize(...)`. A
 `ComposerCustomization` can contribute React action and banner components,
-host-rendered `ComposerPlusMenuItem` rows, and `ComposerRichTextSpec` rules.
-Mounted components use `useComposer()` for writes, effects, and input locking,
-and `useComposerView()` for the reactive scope, layout, draft, and run state.
+host-rendered `ComposerPlusMenuItem` and `ComposerSendMenuItem` rows, and
+`ComposerRichTextSpec` rules. Mounted components use `useComposer()`: one
+stable handle for the composer's text, mentions, picker selection, scope,
+layout, run and submit state, writes, effects, and input locking. Selection is
+reactive and is `null` for composers without pickers. Panels and pages that
+write into a composer the user picks use `useComposers()`, one handle per
+composer on screen.
 Any mounted plugin component can use
 `useBbNavigate().openThreadPanel(...)` to request one of the
-same plugin's registered thread-panel actions; it returns false when the
-current surface has no thread side panel.
+same plugin's registered panel actions: `threadPanelAction` in a thread,
+`experimental_newThreadPanelAction` on the New thread screen. It returns false
+on plugin pages, which have no panel actions.
 
 Use `UrlLink` for a real anchor that applies BB's current
 in-app/external-browser preference on ordinary HTTP(S) activation, or
@@ -43,6 +48,13 @@ frontend harness. Buttons and menus can call
 the current host accepted the intent. Targets never infer an ambient workspace.
 The frontend harness records both methods and accepts `openFilePreview` and
 `openFileExternally` behavior options.
+
+To show a terminal beside your UI, create it with `useSdk().terminals.create`
+in the thread, environment, or host directory you want, then call
+`useBbNavigate().experimental_openTerminal({ terminalId })`. It resolves
+whether the current surface selected the terminal's tab; thread surfaces accept
+only their own thread's terminals. The harness records the call and accepts an
+`openTerminal` behavior option.
 
 A nav panel's `fixedTabs` entries must include the containing nav
 panel's `id` as `panelId`; each entry is also a stable reference to that
@@ -70,7 +82,7 @@ app-wide floating React UI. BB mounts the component once per app window through
 the normal plugin slot boundary, so SDK hooks and plugin CSS work and React
 context survives portals. This app-level boundary includes the sidebar thread
 data and action hooks. Hooks whose contract requires a particular surface,
-including `useComposer` and `useComposerView`, remain limited to that surface.
+including `useComposer`, remain limited to that surface.
 The plugin owns the overlay's chrome, positioning, visibility, focus, and
 responsive behavior; a crashing overlay is hidden without affecting siblings.
 Use a content script for app-wide DOM behavior that does not need React context.

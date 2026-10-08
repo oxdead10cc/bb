@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { SidebarSectionId } from "../model/sidebar-section-id.js";
 import type { CollapsedChildActivity } from "../model/thread-activity.js";
+import { NO_THREAD_IDS, useThreadsHaveDraft } from "./sidebarDraftPresence.js";
 import {
   SIDEBAR_ROW_BASE_CLASS,
   SIDEBAR_GROUP_TEXT_CLASS,
@@ -98,12 +99,15 @@ function SidebarSectionRowComponent({
   const pluginStatus = usePluginThreadRowStatusForThreads(collapsedThreads);
   const hasMenuActions = Boolean(onRename || onRemove);
   const hasActions = Boolean(onCreateThread || hasMenuActions);
+  const hiddenThreadsHaveDraft = useThreadsHaveDraft(
+    isCollapsed ? activity.threadIds : NO_THREAD_IDS,
+  );
   const showRollupIndicator =
     isCollapsed &&
     (collapsedSplitIndicator.miniMap !== null ||
       activity.pending ||
       activity.working ||
-      activity.hasUnsubmittedDraft ||
+      hiddenThreadsHaveDraft ||
       activity.unread ||
       activity.unreadError ||
       pluginStatus !== null);
@@ -184,7 +188,7 @@ function SidebarSectionRowComponent({
           data-sidebar-collapsed-activity-edge=""
           data-sidebar-hover-actions-open={isActionsOpen ? "true" : undefined}
           className={cn(
-            "pointer-events-none absolute right-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center text-subtle-foreground max-md:pointer-coarse:hidden",
+            "pointer-events-none absolute right-0 top-1/2 z-20 inline-flex -translate-y-1/2 items-center text-subtle-foreground [@media(hover:none)]:hidden",
             hasActions && SIDEBAR_HOVER_ACTIONS_FADE_CLASS,
           )}
         >
@@ -201,7 +205,7 @@ function SidebarSectionRowComponent({
         )}
       >
         {hasActions && showRollupIndicator ? (
-          <span className="hidden shrink-0 items-center justify-center text-subtle-foreground max-md:pointer-coarse:inline-flex">
+          <span className="hidden shrink-0 items-center justify-center text-subtle-foreground [@media(hover:none)]:inline-flex">
             {renderRollupIndicator()}
           </span>
         ) : null}
@@ -215,7 +219,7 @@ function SidebarSectionRowComponent({
               SIDEBAR_HOVER_ACTIONS_CLASS,
               "relative z-10 inline-flex shrink-0 items-center",
               SIDEBAR_HOVER_ACTIONS_GAP_CLASS,
-              isCollapsed && "max-md:pointer-coarse:hidden",
+              isCollapsed && "[@media(hover:none)]:hidden",
             )}
             onClick={stopActionsClick}
           >
@@ -233,7 +237,7 @@ function SidebarSectionRowComponent({
             </SidebarHeaderControls>
           </span>
         ) : showRollupIndicator ? (
-          <span className="hidden size-full items-center justify-center text-subtle-foreground max-md:pointer-coarse:inline-flex">
+          <span className="hidden size-full items-center justify-center text-subtle-foreground [@media(hover:none)]:inline-flex">
             {renderRollupIndicator()}
           </span>
         ) : null}

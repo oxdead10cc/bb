@@ -1,6 +1,7 @@
+import type { EnvironmentRemoval } from "@bb/domain";
 import type { MachineEnrollmentService } from "../machines/machine-services.js";
 import type { AiServiceRegistry } from "../ai/ai-service-registry.js";
-import type { DbConnection } from "@bb/db";
+import type { DbConnection, HostRow } from "@bb/db";
 import type {
   DynamicTool,
   PendingInteraction,
@@ -46,6 +47,7 @@ export interface LoadedPlugin {
   manifest: PluginManifest;
   handle: PluginApiHandle;
   services: ServiceRuntime[];
+  moduleRootUrls: Set<string>;
 }
 
 export interface PluginHostArtifactSnapshot {
@@ -208,10 +210,12 @@ export type PluginMentionResolveResult =
   | { ok: false; error: string };
 
 export interface PluginThreadEventEmitter {
+  emitEnvironmentRemoved(removal: EnvironmentRemoval): void;
   emitThreadEvents(threadId: string): void;
   emitTerminalInput(
     terminal: import("@bb/server-contract").TerminalSession,
   ): void;
+  emitHostDeleted(host: HostRow): void;
   emitThreadCreated(thread: Thread): void;
   emitThreadActive(thread: Thread): void;
   emitThreadIdle(thread: Thread): void;

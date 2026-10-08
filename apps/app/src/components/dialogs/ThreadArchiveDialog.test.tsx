@@ -10,9 +10,11 @@ afterEach(() => {
 });
 
 function renderDialog({
-  childThreadCount,
+  childThreadCount = 1,
   status = "idle",
+  pending = false,
 }: {
+  pending?: boolean;
   childThreadCount?: number;
   status?: "idle" | "starting" | "active" | "stopping";
 } = {}) {
@@ -22,7 +24,7 @@ function renderDialog({
   const view = render(
     <ThreadArchiveDialog
       target={{ thread, childThreadCount }}
-      pending={false}
+      pending={pending}
       onOpenChange={onOpenChange}
       onArchive={onArchive}
     />,
@@ -34,24 +36,24 @@ describe("ThreadArchiveDialog", () => {
   it("announces the cascade with singular and plural child counts", () => {
     const { view } = renderDialog({ childThreadCount: 1 });
     expect(
-      screen.getByText(/1 child thread will be archived too\./),
+      screen.getByText(/1 child thread will be archived with this thread\./),
     ).toBeTruthy();
 
     view.unmount();
     renderDialog({ childThreadCount: 3 });
     expect(
-      screen.getByText(/3 child threads will be archived too\./),
+      screen.getByText(/3 child threads will be archived with this thread\./),
     ).toBeTruthy();
   });
 
-  it("omits the cascade sentence when the thread has no children", () => {
-    renderDialog();
+  it("names the total number of threads in the title and action", () => {
+    renderDialog({ childThreadCount: 3 });
 
-    expect(screen.queryByText(/will be archived too/)).toBeNull();
     expect(
-      screen.getByText(
-        "Archived threads stay available and can be unarchived.",
-      ),
+      screen.getByRole("heading", { name: "Archive 4 threads?" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Archive 4 threads" }),
     ).toBeTruthy();
   });
 
@@ -68,6 +70,26 @@ describe("ThreadArchiveDialog", () => {
     expect(screen.queryByText(/This will stop current work\./)).toBeNull();
   });
 
+  it("focuses the archive action when opened for keyboard confirmation", () => {
+    renderDialog();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Archive 2 threads" }),
+    );
+  });
+
+  it("cancels with Escape without archiving", () => {
+    const { onArchive, onOpenChange } = renderDialog();
+    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onArchive).not.toHaveBeenCalled();
+  });
+
+  it("ignores confirmation while archiving is pending", () => {
+    const { onArchive } = renderDialog({ pending: true });
+    fireEvent.click(screen.getByRole("button", { name: "Archive 2 threads" }));
+    expect(onArchive).not.toHaveBeenCalled();
+  });
+
   it("archives only when confirmation is accepted", () => {
     const { onArchive, onOpenChange, thread } = renderDialog({
       childThreadCount: 2,
@@ -77,7 +99,7 @@ describe("ThreadArchiveDialog", () => {
     expect(onArchive).not.toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "Archive thread" }));
+    fireEvent.click(screen.getByRole("button", { name: "Archive 3 threads" }));
     expect(onArchive).toHaveBeenCalledWith({ thread, childThreadCount: 2 });
   });
 });

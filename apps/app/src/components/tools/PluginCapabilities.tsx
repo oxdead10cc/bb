@@ -314,6 +314,14 @@ function pluginAppSurfaceItems(
             "Adds an action beside the thread composer.",
           ),
         ),
+        ...(slot.experimental_popups ?? []).map((popup) =>
+          namedSurface(
+            `composer:${slot.id}:popup:${popup.id}`,
+            popup.id,
+            popup.label,
+            "Opens plugin content beside the composer, sharing the mention menu's placement.",
+          ),
+        ),
         ...(slot.banners ?? []).map((banner) =>
           namedSurface(
             `composer:${slot.id}:banner`,
@@ -622,7 +630,7 @@ export function PluginHealthBanner({
 
 export function PluginServices({ plugin }: { plugin: PluginListItem }) {
   return (
-    <div className="max-w-full overflow-hidden rounded-lg border border-border bg-card align-top">
+    <div className="@container/plugin-detail max-w-full overflow-hidden rounded-lg border border-border bg-card align-top">
       <table
         aria-label="Background services"
         className="w-full max-w-full table-fixed border-collapse text-left"

@@ -408,6 +408,7 @@ function buildPage(
     completedTurnDisplay: "collapse",
     eventBudget,
     responseByteBudget,
+    includeClearedContextHistory: false,
     includeDiagnosticOperations: false,
     includeNestedRows: false,
     maxInlineOutputChars: 32_000,
@@ -429,6 +430,7 @@ function buildNestedPage(
     completedTurnDisplay: "collapse",
     eventBudget,
     responseByteBudget,
+    includeClearedContextHistory: false,
     includeDiagnosticOperations: false,
     includeNestedRows: true,
     maxInlineOutputChars: 32_000,
@@ -1844,6 +1846,7 @@ describe("timeline inline output reads", () => {
     const capped = buildThreadTimelineWithProfile(db, thread, {
       completedTurnDisplay: "collapse",
       eventBudget: LARGE_BUDGET,
+      includeClearedContextHistory: false,
       includeDiagnosticOperations: false,
       includeNestedRows: false,
       maxInlineOutputChars: 32_000,
@@ -1853,6 +1856,7 @@ describe("timeline inline output reads", () => {
     const uncapped = buildThreadTimelineWithProfile(db, thread, {
       completedTurnDisplay: "collapse",
       eventBudget: LARGE_BUDGET,
+      includeClearedContextHistory: false,
       includeDiagnosticOperations: false,
       includeNestedRows: false,
       maxInlineOutputChars: null,
@@ -1883,76 +1887,6 @@ describe("timeline inline output reads", () => {
     expect(cappedRow.output.startsWith(output.slice(0, 2_048))).toBe(true);
     expect(cappedRow.output.endsWith(output.slice(-2_048))).toBe(true);
     expect(cappedRow.output).toContain("output truncated by retention policy");
-  });
-});
-
-describe("timeline retained output reads", () => {
-  it("keeps capped reads bounded and hydrates uncapped reads", () => {
-    const { db, thread } = setup();
-    seedTurns(db, thread, { completeLastTurn: false, itemsPerTurn: [1] });
-    const output = "x".repeat(50_000);
-    insertEvents(db, noopNotifier, [
-      {
-        threadId: thread.id,
-        sequence: 500,
-        type: "item/completed",
-        scope: turnScope("turn-1"),
-        providerThreadId,
-        itemId: "retained-command",
-        itemKind: "commandExecution",
-        parentToolCallId: null,
-        data: JSON.stringify({
-          item: {
-            type: "commandExecution",
-            id: "retained-command",
-            command: "cat large",
-            cwd: "/tmp/test",
-            status: "completed",
-            approvalStatus: null,
-            exitCode: 0,
-            aggregatedOutput: output,
-          },
-        }),
-      },
-    ]);
-
-    const capped = buildThreadTimelineWithProfile(db, thread, {
-      completedTurnDisplay: "collapse",
-      eventBudget: LARGE_BUDGET,
-      includeDiagnosticOperations: false,
-      includeNestedRows: false,
-      maxInlineOutputChars: 32_000,
-      maxSeq: 500,
-      page: { kind: "latest", segmentLimit: 20 },
-    }).response;
-    const uncapped = buildThreadTimelineWithProfile(db, thread, {
-      completedTurnDisplay: "collapse",
-      eventBudget: LARGE_BUDGET,
-      includeDiagnosticOperations: false,
-      includeNestedRows: false,
-      maxInlineOutputChars: null,
-      maxSeq: 500,
-      page: { kind: "latest", segmentLimit: 20 },
-    }).response;
-    const cappedRow = capped.rows.find(
-      (row) => row.kind === "work" && row.id.endsWith("retained-command"),
-    );
-    const uncappedRow = uncapped.rows.find(
-      (row) => row.kind === "work" && row.id.endsWith("retained-command"),
-    );
-    if (
-      cappedRow?.kind !== "work" ||
-      cappedRow.workKind !== "command" ||
-      uncappedRow?.kind !== "work" ||
-      uncappedRow.workKind !== "command"
-    ) {
-      throw new Error("Expected retained command rows");
-    }
-    expect(cappedRow.output.length).toBeLessThan(5_000);
-    expect(cappedRow.output).toContain("output truncated by retention policy");
-    expect(uncappedRow.output).toBe(output);
-
-    db.$client.close();
   });
 });
 
@@ -2304,6 +2238,7 @@ describe("turn details for an item that finishes in a later turn", () => {
     const unfinishedLatest = buildThreadTimelineWithProfile(db, thread, {
       completedTurnDisplay: "collapse",
       eventBudget: LARGE_BUDGET,
+      includeClearedContextHistory: false,
       includeDiagnosticOperations: false,
       includeNestedRows: true,
       maxInlineOutputChars: 32_000,

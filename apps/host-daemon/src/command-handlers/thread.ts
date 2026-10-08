@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { AgentRuntimeBridgeLaunch } from "@bb/agent-runtime";
 import { flattenPromptInputGroups } from "@bb/domain";
+import { killProcessesWithCwdUnder } from "@bb/process-utils";
 import {
   COMPETING_TURN_ERROR_CODE,
   type HostDaemonCommandResult,
@@ -60,6 +61,7 @@ export async function deleteThreadStorage(
     path.join(options.threadStorageRootPath, command.threadId),
     "Thread storage path escapes the storage root",
   );
+  await killProcessesWithCwdUnder({ directories: [storagePath] });
   await fs.rm(storagePath, { recursive: true, force: true });
 }
 
@@ -131,6 +133,7 @@ async function requireSupportedProviderCliForThreadStart({
       return options.providerInstallationStatus({
         providerId: command.providerId,
         bridgeLaunch,
+        checkUpdates: false,
         ...(requirement !== undefined ? { requirement } : {}),
       });
     },
@@ -225,7 +228,6 @@ async function resumeThreadRuntimeIfMissing(
     options: command.options,
     instructions: resumeContext.instructions,
     dynamicTools: resumeContext.dynamicTools,
-    disallowedTools: resumeContext.disallowedTools,
     instructionMode: resumeContext.instructionMode,
   });
 }
@@ -267,7 +269,6 @@ export async function startThread(
       options: command.options,
       instructions: command.instructions,
       dynamicTools: command.dynamicTools,
-      disallowedTools: command.disallowedTools,
       instructionMode: command.instructionMode,
       ...(command.fork ? { fork: command.fork } : {}),
     });
@@ -301,7 +302,6 @@ export async function prepareThreadRewind(
     options: command.options,
     instructions: command.instructions,
     dynamicTools: command.dynamicTools,
-    disallowedTools: command.disallowedTools,
     instructionMode: command.instructionMode,
   });
 }
@@ -360,7 +360,7 @@ async function runSubmittedTurn(
     contributedEnv: command.resumeContext.contributedEnv,
     instructions: command.resumeContext.instructions,
   });
-  return { appliedAs: "new-turn" };
+  return {};
 }
 
 async function steerSubmittedTurn(
@@ -382,7 +382,7 @@ async function steerSubmittedTurn(
     });
 
     if (result.status === "steered") {
-      return { appliedAs: "steer" };
+      return {};
     }
     activeTurnId = result.activeTurnId;
     if (attempt === TURN_SUBMIT_STEER_ATTEMPTS - 1) {

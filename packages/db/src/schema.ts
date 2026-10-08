@@ -138,6 +138,11 @@ export const hosts = sqliteTable(
   },
   (table) => [
     index("hosts_last_seen_idx").on(table.lastSeenAt),
+    index("hosts_pending_provider_idx")
+      .on(table.machineProviderId)
+      .where(
+        sql`${table.destroyedAt} IS NULL AND ${table.phase} <> 'destroyed'`,
+      ),
     uniqueIndex("hosts_live_launch_key_idx")
       .on(table.launchKey)
       .where(sql`${table.destroyedAt} is null`),
@@ -326,6 +331,9 @@ export const installedPlugins = sqliteTable("plugins", {
   rootDir: text("root_dir").notNull(),
   version: text("version").notNull(),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  enabledFollowsDefault: integer("enabled_follows_default", { mode: "boolean" })
+    .notNull()
+    .default(false),
   removedAt: integer("removed_at"),
   installedAt: integer("installed_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
@@ -563,7 +571,9 @@ export const environments = sqliteTable(
       table.path,
     ),
     index("environments_host_path_lookup_idx").on(table.hostId, table.path),
-    uniqueIndex("environments_owner_thread_idx").on(table.ownerThreadId),
+    uniqueIndex("environments_owner_thread_idx")
+      .on(table.ownerThreadId)
+      .where(sql`${table.ownerThreadId} IS NOT NULL`),
     index("environments_claim_idx").on(table.hostId, table.claimPath),
     index("environments_project_idx").on(table.projectId),
     index("environments_status_idx").on(table.status),
@@ -571,6 +581,11 @@ export const environments = sqliteTable(
       table.environmentProviderId,
       table.environmentProviderInstanceKey,
     ),
+    index("environments_provider_lifecycle_idx")
+      .on(table.environmentProviderId)
+      .where(
+        sql`${table.status} <> 'destroyed' OR ${table.teardownStatus} IS NOT 'removed'`,
+      ),
   ],
 );
 
@@ -657,6 +672,9 @@ export const threads = sqliteTable(
       table.id,
     ),
     index("threads_archived_status_idx").on(table.archivedAt, table.status),
+    index("threads_deleted_cleanup_idx")
+      .on(table.deletedAt)
+      .where(sql`${table.deletedAt} IS NOT NULL`),
     index("threads_environment_archived_deleted_idx").on(
       table.environmentId,
       table.archivedAt,
@@ -879,6 +897,7 @@ export const threadPruningCursors = sqliteTable(
     step: integer("step").notNull().default(0),
     sequence: integer("sequence").notNull().default(0),
     upperSequence: integer("upper_sequence").notNull().default(0),
+    workRevision: integer("work_revision").notNull().default(0),
     cycle: integer("cycle").notNull().default(0),
     latestRootSequence: integer("latest_root_sequence").notNull().default(0),
     latestContextSequence: integer("latest_context_sequence")
@@ -945,6 +964,11 @@ export const promptHistoryEntries = sqliteTable(
     index("prompt_history_entries_project_scope_created_idx").on(
       table.projectId,
       table.scope,
+      table.createdAt,
+      table.requestSequence,
+      table.id,
+    ),
+    index("prompt_history_entries_created_idx").on(
       table.createdAt,
       table.requestSequence,
       table.id,
@@ -1050,6 +1074,7 @@ export const queuedThreadMessages = sqliteTable(
     retryReason: text("retry_reason"),
     claimedAt: integer("claimed_at"),
     claimToken: text("claim_token"),
+    editHeldUntil: integer("edit_held_until"),
     sortKey: text("sort_key").notNull(),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
@@ -1292,6 +1317,21 @@ export const projectAttachmentThreads = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.attachmentId, table.threadId] }),
     index("project_attachment_threads_thread_idx").on(table.threadId),
+  ],
+);
+
+export const threadPruningWork = sqliteTable(
+  "thread_pruning_work",
+  {
+    policy: text("policy").notNull(),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => threads.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull().default(1),
+  },
+  (table) => [
+    primaryKey({ columns: [table.policy, table.threadId] }),
+    index("thread_pruning_work_thread_idx").on(table.threadId),
   ],
 );
 

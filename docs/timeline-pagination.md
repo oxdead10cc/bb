@@ -11,7 +11,9 @@ thread/type/sequence index. These are hints: it does not inspect request input,
 resolve acceptance, or require the hinted event to produce a visible row. It
 prefers hints within the event budget, or the nearest older hint for an
 oversized conversation. Without a request hint it can cut at an ordinary event
-sequence. The latest completed context clear is the history floor.
+sequence. The latest completed context clear is the history floor unless the
+`keepHistoryAfterContextClear` general setting is on; then pages continue across
+it to the start of the thread.
 
 A page owns an event window `[start, end)`. It returns projected rows whose
 `sourceSeqStart` falls inside that window, in display order. Context loaded
@@ -59,9 +61,20 @@ snapshot projected no such rows. When a new latest snapshot's window reaches
 the loaded tip and this value does not exceed it, `mergeLoadedTimelineWithLatest`
 keeps loaded older pages and replaces the rows the latest page covers, so
 streaming does not unload history. Otherwise a later event changed a row the
-page omitted, and loaded rows are replaced. A row that keeps changing while
-omitted, such as a long-running item before a content cut, therefore replaces
-loaded rows on each refresh.
+page omitted, and loaded rows are replaced.
+
+A latest page sends omitted rows whose `sourceSeqEnd` reaches its window start
+in `timelinePage.olderRowUpdates` instead of in `olderRowsSourceSeqEnd`, such as
+a running background delegation that started on an older page. Each update
+keeps only the nested children that reach the window start.
+`mergeLoadedTimelineWithLatest` joins each update into the loaded row with the
+same id and ignores rows it has not loaded, including on repeat refreshes of
+the same snapshot. Updates share the page byte budget
+with the returned rows. Updates that do not fit the remaining budget, and leaves
+omitted by a content cut, still count toward `olderRowsSourceSeqEnd`.
+
+`summaryOnly=true` returns head state without timeline rows or older-row updates.
+
 `completedTurnDisplay` reports whether the page projected finished turns as
 collapsed "Worked for" rows or flat rows. It is part of the display surface: a
 cursor from one display returns HTTP 400 under the other, and
@@ -141,3 +154,47 @@ subject to the existing preview and retention rules.
 Content pagination does not freeze completed turns, persist projections,
 perform a backfill, add database tables or triggers, or run work on event
 ingestion. Appended events are interpreted when a new snapshot is requested.
+
+## Conversation outline caching
+
+The conversation outline returns the full list of message previews. Exact
+revisions use an in-memory response cache and idle/error threads also persist
+their outline. When an active thread advances, a bounded per-database cache
+retains completed outline items and reprojects the tail from a safe turn
+boundary. It keeps the latest turn in the tail even after that turn completes.
+
+Ordinary outlines select only root events before decoding and projection. A
+child turn is identified by its stored start, including child completion events
+without a parent ID. Unfinished children do not prevent retaining completed root
+history. Checkpoints never cross an unresolved steer, an open root turn, or the
+first external-user ordering boundary.
+
+Accepted root turns with inherited parent metadata, background/delegation state,
+and external-user ordering use the full projection conservatively. These
+classification changes are checked in newly appended events and retained with
+the bounded checkpoint. Late references to retained root turns, requests, or
+parent items, history rewrites, context clears, metadata/display changes, and
+writes from another database connection force a rebuild.
+
+The message-delta compaction threshold still counts nested deltas through an
+indexed, bounded lookup. Crossing it rebuilds the prefix so empty completed
+messages keep the same fallback previews even when child payloads are omitted.
+The checkpoint cache retains at most 16 threads and 8 million characters of
+serialized previews and identity data; eviction only affects performance.
+
+## Catch-up feedback
+
+Event-append notifications include `metadata.timelineSequence`, the thread's
+stored event sequence after the write. Both server-side notification coalescing
+and client-side debouncing preserve the highest sequence. The client compares
+this with the cached timeline response's `maxSeq`; only a known newer sequence
+shows catch-up feedback. A refresh caused by cache age, or a delayed notification
+already covered by the cached response, does not show it. Notifications without
+a sequence still invalidate the cache but do not claim that messages are missing.
+
+A successful response acknowledges only sequences through its `maxSeq`, so a
+response that predates another known event cannot clear that event. The catch-up
+indicator appears only after the timeline has remained behind for one second,
+and disappears immediately when the cache catches up. It renders as a row at the
+end of the timeline. Initial loads without cached rows continue to use the
+loading skeleton.

@@ -5,8 +5,16 @@ import {
 } from "@bb/shared-ui/resource-pagination";
 import { PluginCatalogInstallControl } from "./PluginCatalogInstallControl";
 import type { PluginCatalogSearchEntry } from "@/hooks/queries/plugin-catalog-queries";
+import {
+  useCancelPluginInstallJob,
+  useCatalogEntryInstallJob,
+} from "@/hooks/queries/plugin-install-job-queries";
 import type { AddPluginInitial } from "./AddPluginDialog";
 import { PluginCard, PluginCardGrid, PluginCardAuthor } from "./PluginCard";
+import {
+  catalogEntryDetailKey,
+  catalogEntryInstallBlocker,
+} from "./installed-plugin-catalog";
 import {
   CatalogEntryIconChip,
   pluginInstallCountPresentation,
@@ -62,7 +70,10 @@ export function PluginCatalogCard({
   onUninstall?: (entry: PluginCatalogSearchEntry) => void;
   onOpenPlugin: (pluginId: string, trigger: HTMLButtonElement) => void;
 }) {
-  const count = pluginInstallCountPresentation(entry.installs);
+  const count = pluginInstallCountPresentation(entry);
+  const installBlocker = catalogEntryInstallBlocker(entry);
+  const installJob = useCatalogEntryInstallJob(entry);
+  const { mutate: cancelInstall } = useCancelPluginInstallJob();
   return (
     <PluginCard
       leading={<CatalogEntryIconChip entry={entry} compact />}
@@ -86,15 +97,17 @@ export function PluginCatalogCard({
             displayName={entry.displayName}
             installed={false}
             subtle
-            disabled={!entry.compatible}
-            unavailableReason={entry.incompatibleReason}
+            disabled={installBlocker !== null}
+            unavailableReason={installBlocker}
             count={count}
             onInstall={() => onInstall(entry)}
+            installJob={installJob}
+            onCancelInstall={cancelInstall}
           />
         )
       }
       openLabel={`Open ${entry.displayName} details`}
-      onOpen={(trigger) => onOpenPlugin(entry.pluginId, trigger)}
+      onOpen={(trigger) => onOpenPlugin(catalogEntryDetailKey(entry), trigger)}
     />
   );
 }
