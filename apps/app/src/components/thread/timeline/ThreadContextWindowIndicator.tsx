@@ -188,6 +188,8 @@ export function ThreadContextWindowIndicator({
         : "text-muted-foreground";
 
   const titleLabel = usage.estimated ? "Estimated context" : "Context window";
+  const usedTokensLabel = formatCompactTokenCount(usage.usedTokens);
+  const windowTokensLabel = formatCompactTokenCount(usage.modelContextWindow);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -195,17 +197,15 @@ export function ThreadContextWindowIndicator({
         <button
           type="button"
           {...triggerHoverProps}
-          className="-m-1 inline-flex size-8 cursor-pointer max-md:pointer-coarse:my-0 max-md:pointer-coarse:-mr-3 max-md:pointer-coarse:-ml-1 max-md:pointer-coarse:h-11 max-md:w-auto max-md:gap-1.5 max-md:pointer-coarse:pl-2 max-md:pointer-coarse:pr-3.5 items-center justify-center rounded-full transition-colors hover:bg-state-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label={`Context window ${usedPercent}% used`}
+          className="-m-1 inline-flex h-8 cursor-pointer max-md:pointer-coarse:my-0 max-md:pointer-coarse:-mr-3 max-md:pointer-coarse:-ml-1 max-md:pointer-coarse:h-11 max-md:pointer-coarse:pl-2 max-md:pointer-coarse:pr-3.5 items-center justify-center gap-1.5 rounded-full px-2 transition-colors hover:bg-state-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Context window ${usedPercent}% used, ${usedTokensLabel} of ${windowTokensLabel} tokens`}
         >
           <span
+            className={cn("text-xs tabular-nums", toneClass)}
             aria-hidden="true"
-            className={cn(
-              "hidden text-xs tabular-nums max-md:inline",
-              toneClass,
-            )}
           >
-            {usedPercent}%
+            {usage.estimated ? "~" : ""}
+            {usedTokensLabel} / {windowTokensLabel}
           </span>
           <svg
             viewBox="0 0 16 16"

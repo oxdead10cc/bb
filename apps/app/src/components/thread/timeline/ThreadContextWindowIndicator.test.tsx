@@ -2,7 +2,10 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import type { ThreadContextWindowUsage } from "@bb/server-contract";
-import { ThreadContextWindowCard } from "./ThreadContextWindowIndicator";
+import {
+  ThreadContextWindowCard,
+  ThreadContextWindowIndicator,
+} from "./ThreadContextWindowIndicator";
 
 afterEach(cleanup);
 
@@ -48,4 +51,35 @@ it("shows details when a snapshot arrives and removes them when only aggregate u
   expect(screen.queryByText("Messages")).toBeNull();
   expect(screen.queryByRole("button", { name: "Hide details" })).toBeNull();
   expect(screen.getByText("10% used")).toBeTruthy();
+});
+
+it("shows used and maximum context tokens next to the ring", () => {
+  render(
+    <ThreadContextWindowIndicator
+      usage={{
+        usedTokens: 112_400,
+        modelContextWindow: 1_000_000,
+        estimated: false,
+      }}
+    />,
+  );
+  expect(screen.getByText("112k / 1m")).toBeTruthy();
+  expect(
+    screen.getByRole("button", {
+      name: "Context window 11% used, 112k of 1m tokens",
+    }),
+  ).toBeTruthy();
+});
+
+it("marks estimated context token counts", () => {
+  render(
+    <ThreadContextWindowIndicator
+      usage={{
+        usedTokens: 150_000,
+        modelContextWindow: 200_000,
+        estimated: true,
+      }}
+    />,
+  );
+  expect(screen.getByText("~150k / 200k")).toBeTruthy();
 });
