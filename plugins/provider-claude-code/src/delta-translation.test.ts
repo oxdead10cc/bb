@@ -1385,7 +1385,7 @@ describe("claude unhandled and ignored events", () => {
     expect(events).toMatchObject([]);
   });
 
-  it("ignores thinking-token system events from the SDK envelope", () => {
+  it("ignores thinking-token system events outside a turn", () => {
     const harness = createClaudeDeltaHarness();
 
     const events = harness.translate({

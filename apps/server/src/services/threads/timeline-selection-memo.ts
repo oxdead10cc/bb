@@ -82,6 +82,7 @@ const APPENDABLE_EVENT_TYPES: ReadonlySet<ThreadEventType> = new Set([
   "item/agentMessage/delta",
   "item/reasoning/textDelta",
   "item/reasoning/summaryTextDelta",
+  "item/reasoning/progress",
   "item/commandExecution/outputDelta",
   "item/fileChange/outputDelta",
   "item/plan/delta",

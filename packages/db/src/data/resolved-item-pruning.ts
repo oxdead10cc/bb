@@ -44,6 +44,7 @@ const deltaKinds: Partial<Record<ThreadEventType, string>> = {
   "item/commandExecution/outputDelta": "commandExecution",
   "item/reasoning/summaryTextDelta": "reasoning",
   "item/reasoning/textDelta": "reasoning",
+  "item/reasoning/progress": "reasoning",
 };
 
 function prepareSupport(

@@ -1499,6 +1499,9 @@ export function createDeltaAssembler(
       case "item.progress": {
         const keyStr = itemKeyString(delta.key);
         const open = state.openItemsByKey.get(keyStr);
+        if (delta.snapshot?.type === "reasoning" && open === undefined) {
+          return;
+        }
         const bbItemId =
           open?.bbItemId ??
           (delta.key.providerItemId !== undefined
@@ -1526,6 +1529,26 @@ export function createDeltaAssembler(
               ),
               presentationOf(open?.item),
             ),
+          };
+        } else if (delta.snapshot?.type === "reasoning") {
+          const turnId =
+            delta.providerTurnId !== undefined
+              ? resolveVouchedTurnId(state, delta.providerTurnId)
+              : state.currentTurnId;
+          if (turnId === undefined) {
+            return;
+          }
+          event = {
+            type: "item/reasoning/progress",
+            threadId: UNSTAMPED_THREAD_ID,
+            providerThreadId: "",
+            scope: turnScope(turnId),
+            itemId: bbItemId,
+            estimatedTokens: delta.snapshot.estimatedTokens,
+            ...(delta.snapshot.expectedTokens === undefined
+              ? {}
+              : { expectedTokens: delta.snapshot.expectedTokens }),
+            ...(parentToolCallId === undefined ? {} : { parentToolCallId }),
           };
         } else if (delta.snapshot !== undefined) {
           event = {
@@ -1571,7 +1594,9 @@ export function createDeltaAssembler(
         ) {
           state.pendingProgressByKey.set(keyStr, {
             event,
-            turnScoped: delta.snapshot === undefined,
+            turnScoped:
+              delta.snapshot === undefined ||
+              delta.snapshot.type === "reasoning",
           });
           return;
         }
@@ -1687,6 +1712,8 @@ export function createDeltaAssembler(
         }
         const open = state.openItemsByKey.get(keyStr);
         state.openItemsByKey.delete(keyStr);
+        state.pendingProgressByKey.delete(keyStr);
+        state.progressLastEmitByKey.delete(keyStr);
         const accumulated =
           open === undefined
             ? undefined

@@ -8,6 +8,7 @@ export const ITEM_STREAMING_EVENT_TYPES = new Set<ThreadEvent["type"]>([
   "item/fileChange/outputDelta",
   "item/reasoning/summaryTextDelta",
   "item/reasoning/textDelta",
+  "item/reasoning/progress",
   "item/mcpToolCall/progress",
   "item/toolCall/progress",
 ]);

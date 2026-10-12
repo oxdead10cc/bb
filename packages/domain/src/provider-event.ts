@@ -563,6 +563,15 @@ const unscopedProviderEventSchema = z.discriminatedUnion("type", [
   itemTextDeltaEventSchema("item/fileChange/outputDelta"),
   itemTextDeltaEventSchema("item/reasoning/summaryTextDelta"),
   itemTextDeltaEventSchema("item/reasoning/textDelta"),
+  z.object({
+    type: z.literal("item/reasoning/progress"),
+    threadId: z.string(),
+    providerThreadId: z.string(),
+    itemId: z.string(),
+    estimatedTokens: z.number().int().nonnegative(),
+    expectedTokens: z.number().int().positive().optional(),
+    parentToolCallId: z.string().optional(),
+  }),
   itemTextDeltaEventSchema("item/plan/delta"),
   z.object({
     type: z.literal("item/mcpToolCall/progress"),

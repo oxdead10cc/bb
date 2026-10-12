@@ -11,6 +11,7 @@ import {
   type ClaudeDeltaTranslationContext,
   type ClaudeDeltaTranslator,
 } from "./delta-translation.js";
+import type { ThinkingTokenHistory } from "./thinking-estimate.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = resolve(__dirname, "./__fixtures__");
@@ -132,16 +133,26 @@ interface ClaudeDeltaHarness {
 }
 
 export function createClaudeDeltaHarness(
-  options: { sandboxEnabled?: boolean } = {},
+  options: {
+    sandboxEnabled?: boolean;
+    thinkingTokenHistory?: ThinkingTokenHistory;
+    progressThrottleMs?: number;
+  } = {},
 ): ClaudeDeltaHarness {
   const translator = createClaudeDeltaTranslator({
     cwd: "/workspace",
     sandboxEnabled: options.sandboxEnabled ?? false,
+    ...(options.thinkingTokenHistory === undefined
+      ? {}
+      : { thinkingTokenHistory: options.thinkingTokenHistory }),
   });
   const assembler = createDeltaAssembler({
     providerId: "claude-code",
     entropyPrefix: CLAUDE_TEST_ENTROPY,
     textDeltaFlushMs: 0,
+    ...(options.progressThrottleMs === undefined
+      ? {}
+      : { progressThrottleMs: options.progressThrottleMs }),
   });
   return {
     translator,

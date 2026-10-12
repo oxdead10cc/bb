@@ -29,6 +29,7 @@ export function getEventProviderThreadId(
     case "item/fileChange/outputDelta":
     case "item/reasoning/summaryTextDelta":
     case "item/reasoning/textDelta":
+    case "item/reasoning/progress":
     case "item/plan/delta":
     case "item/mcpToolCall/progress":
     case "item/toolCall/progress":
@@ -82,6 +83,7 @@ export function getEventParentToolCallId(
     case "item/fileChange/outputDelta":
     case "item/reasoning/summaryTextDelta":
     case "item/reasoning/textDelta":
+    case "item/reasoning/progress":
     case "item/plan/delta":
     case "item/mcpToolCall/progress":
     case "item/toolCall/progress":

@@ -10,6 +10,7 @@ interface TimelineWorkingIndicatorProps {
   isThinking?: boolean;
   details?: string;
   reasoningId?: string;
+  progress?: string | null;
 }
 
 export function TimelineWorkingIndicator({
@@ -17,8 +18,10 @@ export function TimelineWorkingIndicator({
   isThinking = false,
   details,
   reasoningId,
+  progress = null,
 }: TimelineWorkingIndicatorProps) {
   const resolvedLabel = label ?? (isThinking ? "Thinking…" : "Working...");
+  const progressText = progress === null ? null : ` · ${progress}`;
   const hasDetails = (details?.trim().length ?? 0) > 0;
 
   if (isThinking || hasDetails) {
@@ -31,11 +34,25 @@ export function TimelineWorkingIndicator({
           title={{
             segments: [
               { text: resolvedLabel, em: false, shimmer: true, truncate: true },
+              ...(progressText === null
+                ? []
+                : [
+                    {
+                      text: progressText,
+                      em: false,
+                      shimmer: false,
+                      truncate: false,
+                      accent: "muted" as const,
+                    },
+                  ]),
             ],
             decorations: [],
             tone: "default",
             action: null,
-            plain: resolvedLabel,
+            plain:
+              progressText === null
+                ? resolvedLabel
+                : `${resolvedLabel}${progressText}`,
           }}
           renderBody={() => <TimelineReasoningDetail text={details ?? ""} />}
         />

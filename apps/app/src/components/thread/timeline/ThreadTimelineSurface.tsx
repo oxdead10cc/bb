@@ -15,6 +15,7 @@ import { TimelineStatusIndicator } from "./TimelineStatusIndicator.js";
 import type { TimelineTitleActionResolver } from "./TimelineTitleView.js";
 import { TimelineReasoningExpansionProvider } from "./TimelineReasoningExpansion.js";
 import { TimelineWorkingIndicator } from "./TimelineWorkingIndicator.js";
+import { describeThinkingProgress } from "./thinking-progress.js";
 import type {
   ThreadTimelineForkMessageHandler,
   ThreadTimelineForkTargetProject,
@@ -267,6 +268,11 @@ export function ThreadTimelineSurface({
             reasoningId={activeThinking?.id}
             isThinking={showActiveThinking}
             label={ongoingIndicatorLabel}
+            progress={
+              showActiveThinking && activeThinking
+                ? describeThinkingProgress(activeThinking)
+                : null
+            }
           />
         </HeightTransition>
       </ConversationTimeline>

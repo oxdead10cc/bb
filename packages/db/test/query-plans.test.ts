@@ -1533,7 +1533,7 @@ describe("slow query index plans", () => {
       discoveryPlan.match(
         /USING COVERING INDEX events_thread_type_sequence_idx/gu,
       ),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     expect(discoveryPlan).toContain("USING INTEGER PRIMARY KEY (rowid=?)");
     expect(discoveryPlan).not.toContain("events_thread_sequence_idx");
     const supportQueries = statements.filter((statement) =>

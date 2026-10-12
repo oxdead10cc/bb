@@ -18,6 +18,7 @@ import type { EventProjectionAssistantTextMessage } from "./event-projection-typ
 import { messageId } from "./format-helpers.js";
 import {
   finalizeReasoningLifecycle,
+  recordReasoningProgress,
   upsertReasoningLifecycle,
 } from "./reasoning-lifecycle-projection.js";
 import type { ProjectionState } from "./event-projection-state.js";
@@ -82,6 +83,16 @@ export function projectAssistantAndReasoningEvent(
       state: args.state,
       threadId: args.decoded.threadId,
     });
+  }
+
+  if (args.decoded.type === "item/reasoning/progress") {
+    recordReasoningProgress({
+      estimatedTokens: args.decoded.estimatedTokens,
+      expectedTokens: args.decoded.expectedTokens,
+      identity: reasoningIdentity,
+      state: args.state,
+    });
+    return true;
   }
 
   if (

@@ -171,9 +171,19 @@ export const deltaItemShapeSchema = z.discriminatedUnion("type", [
 export type DeltaItemShape = z.infer<typeof deltaItemShapeSchema>;
 export type DeltaItemShapeType = DeltaItemShape["type"];
 
+export const deltaReasoningProgressSnapshotSchema = z.object({
+  type: z.literal("reasoning"),
+  estimatedTokens: z.number().int().nonnegative(),
+  expectedTokens: z.number().int().positive().optional(),
+});
+export type DeltaReasoningProgressSnapshot = z.infer<
+  typeof deltaReasoningProgressSnapshotSchema
+>;
+
 export const deltaProgressSnapshotSchema = z.discriminatedUnion("type", [
   deltaBackgroundTaskShapeSchema,
   deltaDelegationShapeSchema,
+  deltaReasoningProgressSnapshotSchema,
 ]);
 export type DeltaProgressSnapshot = z.infer<typeof deltaProgressSnapshotSchema>;
 

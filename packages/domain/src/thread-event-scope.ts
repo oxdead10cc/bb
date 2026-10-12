@@ -100,6 +100,7 @@ const threadEventScopeDefinitionByType = {
   "item/fileChange/outputDelta": { policy: "turn" },
   "item/reasoning/summaryTextDelta": { policy: "turn" },
   "item/reasoning/textDelta": { policy: "turn" },
+  "item/reasoning/progress": { policy: "turn" },
   "item/plan/delta": { policy: "turn" },
   "item/mcpToolCall/progress": { policy: "turn" },
   "item/toolCall/progress": { policy: "turn" },

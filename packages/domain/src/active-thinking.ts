@@ -5,6 +5,8 @@ export interface ActiveThinking {
   text: string;
   startedAt: number;
   updatedAt: number;
+  estimatedTokens?: number;
+  expectedTokens?: number;
 }
 
 export const activeThinkingSchema = z.object({
@@ -12,4 +14,6 @@ export const activeThinkingSchema = z.object({
   text: z.string(),
   startedAt: z.number(),
   updatedAt: z.number(),
+  estimatedTokens: z.number().optional(),
+  expectedTokens: z.number().optional(),
 });

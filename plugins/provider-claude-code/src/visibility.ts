@@ -510,8 +510,12 @@ function describeParsedClaudeRawEvent(
         case "notification":
         case "plugin_install":
         case "session_state_changed":
-        case "thinking_tokens":
           return { kind: `sdk/system:${event.subtype}`, coverage: "noise" };
+        case "thinking_tokens":
+          return {
+            kind: "sdk/system:thinking_tokens",
+            coverage: "normalized",
+          };
         case "permission_denied":
           return {
             kind: "sdk/system:permission_denied",

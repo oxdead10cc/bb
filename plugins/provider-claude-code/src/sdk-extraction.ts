@@ -156,6 +156,18 @@ export function extractStreamThinkingDelta(
   return parsed.data.content_block.thinking || undefined;
 }
 
+export function extractAssistantModel(
+  message: ClaudeAssistantMessage,
+): string | undefined {
+  const inner = message.message;
+  if (typeof inner !== "object" || inner === null || !("model" in inner)) {
+    return undefined;
+  }
+  return typeof inner.model === "string" && inner.model.length > 0
+    ? inner.model
+    : undefined;
+}
+
 export function extractThinkingBlocks(
   message: ClaudeAssistantMessage,
 ): string[] {

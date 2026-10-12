@@ -174,6 +174,13 @@ export const claudeApiRetryMessageSchema = claudeSystemMessageSchema
   .passthrough();
 export type ClaudeApiRetryMessage = z.infer<typeof claudeApiRetryMessageSchema>;
 
+export const claudeThinkingTokensSystemMessageSchema = claudeSystemMessageSchema
+  .extend({
+    subtype: z.literal("thinking_tokens"),
+    estimated_tokens: z.number().nonnegative(),
+  })
+  .passthrough();
+
 export const claudeStatusSystemMessageSchema = claudeSystemMessageSchema
   .extend({
     subtype: z.literal("status"),

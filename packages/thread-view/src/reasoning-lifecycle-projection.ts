@@ -19,6 +19,8 @@ import {
 } from "./buffered-text-identity.js";
 
 interface ActiveThinkingLifecycle {
+  estimatedTokens: number | null;
+  expectedTokens: number | null;
   messageKey: string;
   parentToolCallId: string | null;
   sourceSeqStart: number;
@@ -160,7 +162,36 @@ export function buildProjectionActiveThinking(
     text: getActiveThinkingText(state, latestLifecycle.messageKey),
     startedAt: latestLifecycle.startedAt,
     updatedAt: latestLifecycle.updatedAt,
+    ...(latestLifecycle.estimatedTokens === null
+      ? {}
+      : { estimatedTokens: latestLifecycle.estimatedTokens }),
+    ...(latestLifecycle.expectedTokens === null
+      ? {}
+      : { expectedTokens: latestLifecycle.expectedTokens }),
   };
+}
+
+interface RecordReasoningProgressArgs {
+  estimatedTokens: number;
+  expectedTokens: number | undefined;
+  identity: BufferedTextInstanceIdentity | null;
+  state: ReasoningProjectionState;
+}
+
+export function recordReasoningProgress(
+  args: RecordReasoningProgressArgs,
+): void {
+  if (!args.identity) {
+    return;
+  }
+  const lifecycle = args.state.openReasoningLifecyclesByKey.get(
+    createBufferedTextInstanceKey(args.identity),
+  );
+  if (!lifecycle) {
+    return;
+  }
+  lifecycle.estimatedTokens = args.estimatedTokens;
+  lifecycle.expectedTokens = args.expectedTokens ?? null;
 }
 
 export function upsertReasoningLifecycle(
@@ -189,6 +220,8 @@ export function upsertReasoningLifecycle(
   }
 
   args.state.openReasoningLifecyclesByKey.set(messageKey, {
+    estimatedTokens: null,
+    expectedTokens: null,
     messageKey,
     parentToolCallId: args.parentToolCallId ?? null,
     sourceSeqStart: args.meta.seq,

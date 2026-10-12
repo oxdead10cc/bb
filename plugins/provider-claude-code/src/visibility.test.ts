@@ -101,7 +101,7 @@ describe("claude-code visibility raw events", () => {
     });
   });
 
-  it("classifies Claude thinking token system events as noise", () => {
+  it("classifies Claude thinking token system events as normalized", () => {
     expect(
       claudeCodeVisibilityMetadata.describeRawEvent({
         jsonrpc: "2.0",
@@ -120,7 +120,7 @@ describe("claude-code visibility raw events", () => {
       } satisfies JsonRpcMessage),
     ).toEqual({
       kind: "sdk/system:thinking_tokens",
-      coverage: "noise",
+      coverage: "normalized",
     });
   });
 });

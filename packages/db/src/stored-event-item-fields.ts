@@ -59,6 +59,7 @@ export function deriveStoredEventItemFieldsFromSource(
       case "item/fileChange/outputDelta":
       case "item/reasoning/summaryTextDelta":
       case "item/reasoning/textDelta":
+      case "item/reasoning/progress":
       case "item/plan/delta":
       case "item/mcpToolCall/progress":
       case "item/toolCall/progress":

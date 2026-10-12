@@ -25,6 +25,7 @@ import {
 } from "@get-bb/plugin-sdk/provider-bridge";
 import {
   claudeApiRetryMessageSchema,
+  claudeThinkingTokensSystemMessageSchema,
   claudeAssistantMessageSchema,
   claudeCompactBoundarySystemMessageSchema,
   claudeConversationResetMessageSchema,
@@ -71,6 +72,7 @@ import {
   extractClaudeResultTokenUsage,
   extractStreamTextDelta,
   extractStreamThinkingDelta,
+  extractAssistantModel,
   extractThinkingBlocks,
   extractToolResults,
   extractToolUses,
@@ -78,6 +80,10 @@ import {
   resolveClaudeModelContextWindowHint,
 } from "./sdk-extraction.js";
 import { claudeCodeVisibilityMetadata } from "./visibility.js";
+import {
+  sharedThinkingTokenHistory,
+  type ThinkingTokenHistory,
+} from "./thinking-estimate.js";
 
 export interface ClaudeDeltaTranslationContext {
   threadId?: string;
@@ -396,6 +402,10 @@ interface ClaudeThreadDialectState {
   selectedModelContextWindow: number | null;
   suppressUnacceptedTurnStart: boolean;
   openCompaction: { segment: number } | undefined;
+  openThinking:
+    | { parentRef: string | undefined; segment: number; tokens: number }
+    | undefined;
+  model: string | undefined;
   startedTools: Map<string, ClaudeClassifiedTool>;
   heldSkillOpen: HeldSkillOpen | undefined;
   tasksById: ClaudeTaskMap;
@@ -413,6 +423,8 @@ function createThreadState(): ClaudeThreadDialectState {
     selectedModelContextWindow: null,
     suppressUnacceptedTurnStart: false,
     openCompaction: undefined,
+    openThinking: undefined,
+    model: undefined,
     startedTools: new Map(),
     heldSkillOpen: undefined,
     tasksById: new Map(),
@@ -423,6 +435,7 @@ function createThreadState(): ClaudeThreadDialectState {
 export interface ClaudeDeltaTranslatorOptions {
   cwd?: string | undefined;
   sandboxEnabled: boolean;
+  thinkingTokenHistory?: ThinkingTokenHistory;
 }
 
 export function createClaudeDeltaTranslator(
@@ -430,6 +443,8 @@ export function createClaudeDeltaTranslator(
 ) {
   const sessionCwd = options.cwd;
   let sandboxEnabled = options.sandboxEnabled;
+  const thinkingHistory =
+    options.thinkingTokenHistory ?? sharedThinkingTokenHistory;
   const statesByThreadId = new Map<string, ClaudeThreadDialectState>();
   let injectedToolsByName = new Map<string, ClaudeInjectedTool>();
 
@@ -459,6 +474,7 @@ export function createClaudeDeltaTranslator(
     state.latestRequestContextTokens = undefined;
     state.latestProviderCheckpointId = undefined;
     state.armedHardRateLimitRejection = undefined;
+    state.openThinking = undefined;
     state.startedTools.clear();
   }
 
@@ -632,6 +648,19 @@ export function createClaudeDeltaTranslator(
       return withMirror(state, [{ kind: "turn.open" }, retryError]);
     }
 
+    const thinkingTokensMessage =
+      claudeThinkingTokensSystemMessageSchema.safeParse(event);
+    if (thinkingTokensMessage.success) {
+      if (!state.mirror.turnOpen) {
+        return [];
+      }
+      return thinkingProgressDeltas(
+        state,
+        context?.parentToolCallId,
+        thinkingTokensMessage.data.estimated_tokens,
+      );
+    }
+
     const statusMessage = claudeStatusSystemMessageSchema.safeParse(event);
     if (statusMessage.success && statusMessage.data.status === "compacting") {
       if (isTurnStartSuppressed(state)) {
@@ -754,6 +783,81 @@ export function createClaudeDeltaTranslator(
     return [];
   }
 
+  function isThinkingOpen(
+    state: ClaudeThreadDialectState,
+    parentRef: string | undefined,
+  ): boolean {
+    return (
+      state.openThinking !== undefined &&
+      state.mirror.turnOpen &&
+      state.openThinking.segment === state.mirror.segment &&
+      state.openThinking.parentRef === parentRef
+    );
+  }
+
+  function thinkingProgressDeltas(
+    state: ClaudeThreadDialectState,
+    parentRef: string | undefined,
+    estimatedTokens: number,
+  ): ThreadDelta[] {
+    const tokens = Math.round(estimatedTokens);
+    const deltas = withMirror(state, [{ kind: "turn.open" }]);
+    const key = {
+      channel: THINKING_STREAM_KEY,
+      ...(parentRef ? { parentRef } : {}),
+    };
+    if (!isThinkingOpen(state, parentRef)) {
+      deltas.push({
+        kind: "item.open",
+        key,
+        item: { type: "reasoning", summary: [], content: [] },
+      });
+    }
+    state.openThinking = {
+      parentRef,
+      segment: state.mirror.segment,
+      tokens,
+    };
+    const expectedTokens = thinkingHistory.expected(state.model, tokens);
+    deltas.push({
+      kind: "item.progress",
+      key,
+      snapshot: {
+        type: "reasoning",
+        estimatedTokens: tokens,
+        ...(expectedTokens === undefined ? {} : { expectedTokens }),
+      },
+    });
+    return deltas;
+  }
+
+  function closeOpenThinking(
+    state: ClaudeThreadDialectState,
+    parentRef: string | undefined,
+    closedWithText: boolean,
+  ): ThreadDelta[] {
+    if (!isThinkingOpen(state, parentRef)) {
+      return [];
+    }
+    const tokens = state.openThinking?.tokens ?? 0;
+    state.openThinking = undefined;
+    thinkingHistory.record(state.model, tokens);
+    if (closedWithText) {
+      return [];
+    }
+    return [
+      {
+        kind: "item.close",
+        key: {
+          channel: THINKING_STREAM_KEY,
+          ...(parentRef ? { parentRef } : {}),
+        },
+        status: "completed",
+        item: { type: "reasoning", summary: [], content: [] },
+      },
+    ];
+  }
+
   function isDuplicateClaudeModelFallback(
     state: ClaudeThreadDialectState,
     transition: ClaudeModelFallbackTransition,
@@ -859,7 +963,12 @@ export function createClaudeDeltaTranslator(
       }
     }
 
-    for (const thinking of extractThinkingBlocks(message)) {
+    const model = extractAssistantModel(message);
+    if (model !== undefined) {
+      state.model = model;
+    }
+    const thinkingBlocks = extractThinkingBlocks(message);
+    for (const thinking of thinkingBlocks) {
       deltas.push({
         kind: "item.textClose",
         key: { channel: THINKING_STREAM_KEY, ...parentRefField },
@@ -867,6 +976,13 @@ export function createClaudeDeltaTranslator(
         text: thinking,
       });
     }
+    deltas.push(
+      ...closeOpenThinking(
+        state,
+        parentToolCallId,
+        thinkingBlocks.length > 0,
+      ),
+    );
 
     const text = extractAssistantText(message);
     if (text) {
@@ -932,7 +1048,14 @@ export function createClaudeDeltaTranslator(
 
     const reasoningDelta = extractStreamThinkingDelta(message);
     if (reasoningDelta) {
-      deltas.push({ kind: "turn.open" });
+      deltas.push(...withMirror(state, [{ kind: "turn.open" }]));
+      if (!isThinkingOpen(state, parentToolCallId)) {
+        state.openThinking = {
+          parentRef: parentToolCallId,
+          segment: state.mirror.segment,
+          tokens: 0,
+        };
+      }
       deltas.push({
         kind: "item.textDelta",
         key: { channel: THINKING_STREAM_KEY, ...parentRefField },

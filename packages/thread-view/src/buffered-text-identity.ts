@@ -82,7 +82,8 @@ export function resolveBufferedTextIdentity(
 
   if (
     args.decoded.type === "item/reasoning/summaryTextDelta" ||
-    args.decoded.type === "item/reasoning/textDelta"
+    args.decoded.type === "item/reasoning/textDelta" ||
+    args.decoded.type === "item/reasoning/progress"
   ) {
     return {
       itemId: args.decoded.itemId,
