@@ -163,9 +163,7 @@ describe("MessageActionBar", () => {
         .map((item) => item.textContent),
     ).toEqual(["Copy link", "Add to chat", "Fork into new thread"]);
     expect(menu.getAttribute("data-side")).toBe("bottom");
-    fireEvent.click(
-      within(menu).getByRole("menuitem", { name: "Copy link" }),
-    );
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Copy link" }));
     expect(onCopyLink).toHaveBeenCalledTimes(1);
   });
 
@@ -246,7 +244,7 @@ describe("MessageActionBar", () => {
     ]);
   });
 
-  it("forks into a project picked from the fork submenu", async () => {
+  it("lists fork target projects inline, with Personal as No project", () => {
     const onForkIntoProject = vi.fn();
     render(
       <MessageActionBar
@@ -263,23 +261,42 @@ describe("MessageActionBar", () => {
       />,
     );
 
-    fireEvent.click(
-      within(openDesktopMenu()).getByRole("menuitem", {
-        name: "Fork into project",
-      }),
-    );
-    const submenu = (await screen.findAllByRole("menu")).at(-1)!;
+    const menu = openDesktopMenu();
+    expect(within(menu).getByText("Fork into project")).toBeTruthy();
     expect(
-      within(submenu)
+      within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Personal", "cursok"]);
-    fireEvent.click(within(submenu).getByRole("menuitem", { name: "cursok" }));
+    ).toEqual(["Fork into new thread", "No project", "cursok"]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "No project" }));
 
-    expect(onForkIntoProject).toHaveBeenCalledWith("proj_cursok");
+    expect(onForkIntoProject).toHaveBeenCalledWith("proj_personal");
   });
 
-  it("hides the fork submenu when no other project can take the fork", () => {
+  it("disables fork target projects while the bar is disabled", () => {
+    const onForkIntoProject = vi.fn();
+    render(
+      <MessageActionBar
+        timestamp={TIMESTAMP}
+        messageText="An answer."
+        alignment="start"
+        mobileActionDisplay="inline"
+        onFork={vi.fn()}
+        forkTargetProjects={[{ id: "proj_cursok", name: "cursok" }]}
+        onForkIntoProject={onForkIntoProject}
+        disabled
+      />,
+    );
+
+    const item = within(openDesktopMenu()).getByRole("menuitem", {
+      name: "cursok",
+    });
+    expect(item.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(item);
+    expect(onForkIntoProject).not.toHaveBeenCalled();
+  });
+
+  it("hides the fork targets when no other project can take the fork", () => {
     render(
       <MessageActionBar
         timestamp={TIMESTAMP}
@@ -293,10 +310,38 @@ describe("MessageActionBar", () => {
     );
 
     expect(
-      within(openDesktopMenu()).queryByRole("menuitem", {
-        name: "Fork into project",
-      }),
+      within(openDesktopMenu()).queryByText("Fork into project"),
     ).toBeNull();
+  });
+
+  it("lists fork target projects in the touch message drawer", async () => {
+    mockMobileCoarsePointer();
+    const onForkIntoProject = vi.fn();
+    render(
+      <MessageActionBar
+        timestamp={TIMESTAMP}
+        messageText="An answer."
+        alignment="start"
+        mobileActionDisplay="overflow"
+        onFork={vi.fn()}
+        forkTargetProjects={[
+          { id: "proj_personal", name: "Personal" },
+          { id: "proj_cursok", name: "cursok" },
+        ]}
+        onForkIntoProject={onForkIntoProject}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Message actions" }));
+
+    const drawer = await screen.findByRole("dialog", {
+      name: "Message actions",
+    });
+    expect(await within(drawer).findByText("Fork into project")).toBeTruthy();
+    fireEvent.click(
+      await within(drawer).findByRole("menuitem", { name: "cursok" }),
+    );
+
+    expect(onForkIntoProject).toHaveBeenCalledWith("proj_cursok");
   });
 
   it("shows a timestamp-only footer in the menu", () => {

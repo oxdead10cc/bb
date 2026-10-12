@@ -8,9 +8,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@bb/shared-ui/dropdown-menu";
 import {
@@ -22,6 +21,7 @@ import {
 import { HOVER_REVEAL_NO_HOVER_VISIBLE_CLASS } from "@bb/shared-ui/hover-reveal";
 import { cn } from "@bb/shared-ui/lib/utils";
 import type { PromptDraftAttachment } from "@bb/client-core";
+import { PERSONAL_PROJECT_ID } from "@bb/domain";
 import { PluginItemIcon, pluginIconName } from "@/components/plugin/PluginIcon";
 import type {
   ThreadTimelineForkTargetProject,
@@ -196,6 +196,8 @@ const MOBILE_INLINE_ACTION_CLASS =
 const MOBILE_OVERFLOW_ACTION_CLASS = "max-md:pointer-coarse:hidden";
 const ACTION_TOOLTIP_SIDE = "bottom";
 const MENU_CONTENT_WIDTH_CLASS = "max-w-[min(16rem,calc(100vw-1rem))]";
+const MENU_CONTENT_HEIGHT_CLASS =
+  "max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-0.5rem))] overflow-y-auto overscroll-contain";
 
 const ACTION_ROW_CLASS =
   "absolute top-0 flex max-w-full items-center gap-2 overflow-hidden data-[menu-open]:[&_button]:opacity-100";
@@ -271,7 +273,7 @@ function MessageActionMenuItems({
   ));
 }
 
-function ForkIntoProjectMenu({
+function ForkIntoProjectMenuItems({
   disabled,
   onSelect,
   projects,
@@ -281,24 +283,28 @@ function ForkIntoProjectMenu({
   projects: readonly ThreadTimelineForkTargetProject[];
 }) {
   return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger disabled={disabled}>
-        <Icon name="Fork" aria-hidden="true" />
-        Fork into project
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="max-h-[min(24rem,calc(100vh-2rem))] min-w-44 overflow-y-auto">
-        {projects.map((project) => (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Fork into project</DropdownMenuLabel>
+      {projects.map((project) => {
+        const isPersonal = project.id === PERSONAL_PROJECT_ID;
+        const label = isPersonal ? "No project" : project.name;
+        return (
           <DropdownMenuItem
             key={project.id}
+            disabled={disabled}
             onSelect={() => onSelect(project.id)}
-            textValue={project.name}
+            textValue={label}
           >
-            <Icon name="Folder" aria-hidden="true" />
-            <span className="min-w-0 flex-1 truncate">{project.name}</span>
+            <Icon
+              name={isPersonal ? "FolderMinus" : "Folder"}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1 truncate">{label}</span>
           </DropdownMenuItem>
-        ))}
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+        );
+      })}
+    </>
   );
 }
 
@@ -529,13 +535,14 @@ export function MessageActionBar({
             <DropdownMenuContent
               align={alignment === "end" ? "end" : "start"}
               mobileTitle="Message actions"
-              className={MENU_CONTENT_WIDTH_CLASS}
+              className={cn(
+                MENU_CONTENT_WIDTH_CLASS,
+                MENU_CONTENT_HEIGHT_CLASS,
+              )}
             >
               <MessageActionMenuItems actions={menuActions} />
-              {onForkIntoProject &&
-              forkTargetProjects.length > 0 &&
-              !isCompactViewport ? (
-                <ForkIntoProjectMenu
+              {onForkIntoProject && forkTargetProjects.length > 0 ? (
+                <ForkIntoProjectMenuItems
                   disabled={disabled}
                   onSelect={onForkIntoProject}
                   projects={forkTargetProjects}
