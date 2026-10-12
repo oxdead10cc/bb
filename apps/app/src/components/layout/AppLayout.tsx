@@ -28,6 +28,7 @@ import {
 } from "@/components/thread/ThreadTitleMentions";
 import { AppCommandShortcutHint } from "@/components/commands/AppCommandShortcutHint";
 import { CommandPalette } from "@/components/commands/CommandPalette";
+import { RecentThreadSwitcher } from "@/components/commands/RecentThreadSwitcher";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import {
   resolveAutomationBreadcrumbs,
@@ -893,6 +894,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 threadId={threadId ?? null}
                 projectId={projectId ?? null}
               />
+              <RecentThreadSwitcher threadId={threadId ?? null} />
               <NotificationCenter />
               <ProjectPathDialog
                 target={quickCreateProject.projectPathDialog.target}

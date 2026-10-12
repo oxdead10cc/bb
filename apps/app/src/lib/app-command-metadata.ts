@@ -63,6 +63,16 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
         "Next thread",
         "Open the next visible sidebar thread.",
       ),
+      paletteHiddenCommand(
+        "thread.cycleRecent",
+        "Switch to recent thread",
+        "Hold the modifier and repeat to move through recently opened threads; release it to open the selected one.",
+      ),
+      paletteHiddenCommand(
+        "thread.cycleRecentBackward",
+        "Switch to recent thread backward",
+        "Move backward through recently opened threads while the switcher is open.",
+      ),
       ...THREAD_JUMP_APP_COMMAND_IDS.map((id, index) =>
         paletteHiddenCommand(
           id,

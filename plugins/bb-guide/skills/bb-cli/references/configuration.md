@@ -197,6 +197,10 @@ the current window like browser history: `Mod+[` / `Mod+]` on desktop and
 the web. `thread.previous` / `thread.next`
 (`Mod+Shift+[` / `Mod+Shift+]` on desktop, `Control+Shift+[` / `Control+Shift+]`
 on the web) follow the sidebar order instead.
+`thread.cycleRecent` / `thread.cycleRecentBackward` (`Control+Tab` /
+`Control+Shift+Tab`, desktop only) open the recent-thread switcher: hold
+Control and repeat Tab to move through threads in the order this window opened
+them, release Control to open the selection, or press Escape to cancel.
 Chat splits use `pane.focus.left` / `right` / `up` / `down` with
 `Command+Control+Shift+ArrowLeft` / `ArrowRight` / `ArrowUp` / `ArrowDown` on macOS. These move
 spatially to the adjacent chat pane, including stacked splits, and stop at the

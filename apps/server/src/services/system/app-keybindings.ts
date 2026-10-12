@@ -208,6 +208,24 @@ export const DEFAULT_APP_KEYBINDINGS: AppDefaultKeybindings = [
       desktopOnly: true,
     },
   ),
+  binding(
+    "thread.cycleRecent",
+    "Tab",
+    { control: true },
+    {
+      ...mainWithoutModal,
+      desktopOnly: true,
+    },
+  ),
+  binding(
+    "thread.cycleRecentBackward",
+    "Tab",
+    { control: true, shift: true },
+    {
+      ...mainWithoutModal,
+      desktopOnly: true,
+    },
+  ),
   ...numberedChatBindings(THREAD_JUMP_APP_COMMAND_IDS, mainWithoutModal),
   ...(
     [

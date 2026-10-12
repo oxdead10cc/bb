@@ -656,6 +656,8 @@ describe("app keybindings", () => {
         "thread.new",
         "thread.previous",
         "thread.next",
+        "thread.cycleRecent",
+        "thread.cycleRecentBackward",
         ...THREAD_JUMP_APP_COMMAND_IDS,
         ...PANE_FOCUS_APP_COMMAND_IDS,
         "panel.reopenClosedTab",

@@ -600,6 +600,10 @@ pane shortcuts follow Slack's browser-safe convention: web uses
 uses `Mod+1…9`. The web aliases leave native browser `Mod+1…9` tab switching
 untouched. Previous and next thread use `Mod+Shift+[/]` on desktop and
 `Control+Shift+[/]` on the web; they follow the sidebar order.
+`Control+Tab` on desktop opens the recent-thread switcher: keep Control held
+and press Tab (or `Control+Shift+Tab`) to move through threads in the order
+this window opened them, then release Control to open the selected thread.
+Escape cancels. The order is kept per window and skips archived threads.
 
 `history.back` / `history.forward` (Go back / Go forward) do the same thing
 as the sidebar's back and forward arrows: they move through the pages opened
@@ -671,6 +675,7 @@ delayed shortcut badges without disabling any shortcuts.
 | Threads   | Rename focused thread                     | Unassigned                        | Thread view              |
 | Threads   | Archive focused thread                    | Unassigned                        | Thread view              |
 | Threads   | Previous / next thread                    | Surface defaults above            | Desktop / web            |
+| Threads   | Switch to recent thread                   | `Control+Tab`                     | Desktop                  |
 | Threads   | Open visible thread 1–9                   | Platform defaults above           | Web / desktop            |
 | Layout    | Previous / next chat pane                 | Unassigned                        | While split              |
 | Layout    | Focus chat pane 1–8                       | Platform defaults above           | Split (web / desktop)    |
